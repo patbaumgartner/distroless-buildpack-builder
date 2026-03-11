@@ -1,0 +1,35 @@
+# Build artifacts
+*.tar
+*.tar.gz
+
+# Local pack cache
+.pack/
+
+# Docker layer cache
+.docker/
+
+# Editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node.js sample
+samples/nodejs/node_modules/
+samples/nodejs/package-lock.json
+
+# Go build artifacts
+samples/go/vendor/
+
+# Java build artifacts
+samples/java/target/
+samples/java/.mvn/wrapper/maven-wrapper.jar
+
+# Temporary test artifacts
+/tmp/

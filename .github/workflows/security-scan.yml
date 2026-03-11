@@ -1,0 +1,208 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Weekly scheduled scan to catch newly disclosed CVEs.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Scan Dockerfiles with Hadolint (Dockerfile best practices)
+  # -------------------------------------------------------------------------
+  hadolint:
+    name: Hadolint – Dockerfile lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on build Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: stack/build/Dockerfile
+          format: sarif
+          output-file: hadolint-build.sarif
+          no-fail: true
+
+      - name: Run hadolint on run Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: stack/run/Dockerfile
+          format: sarif
+          output-file: hadolint-run.sarif
+          no-fail: true
+
+      - name: Upload hadolint SARIF (build image)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-build.sarif
+          category: hadolint-build
+
+      - name: Upload hadolint SARIF (run image)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-run.sarif
+          category: hadolint-run
+
+  # -------------------------------------------------------------------------
+  # Trivy – vulnerability scan of the stack images
+  # -------------------------------------------------------------------------
+  trivy-build-image:
+    name: Trivy – scan build stack image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build build stack image (local for scanning)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/build
+          load: true
+          tags: distroless-builder/build:scan
+
+      - name: Run Trivy vulnerability scan – build image
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: "distroless-builder/build:scan"
+          format: sarif
+          output: trivy-build.sarif
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF – build image
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-build.sarif
+          category: trivy-build
+
+  trivy-run-image:
+    name: Trivy – scan run stack image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build run stack image (local for scanning)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/run
+          load: true
+          tags: distroless-builder/run:scan
+
+      - name: Run Trivy vulnerability scan – run image
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: "distroless-builder/run:scan"
+          format: sarif
+          output: trivy-run.sarif
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF – run image
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-run.sarif
+          category: trivy-run
+
+  # -------------------------------------------------------------------------
+  # Trivy – filesystem / IaC scan (builder.toml, Dockerfiles, workflows)
+  # -------------------------------------------------------------------------
+  trivy-fs:
+    name: Trivy – filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: "CRITICAL,HIGH,MEDIUM"
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF – filesystem
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  # -------------------------------------------------------------------------
+  # OSSF Scorecard – supply-chain security score
+  # -------------------------------------------------------------------------
+  scorecard:
+    name: OSSF Scorecard
+    runs-on: ubuntu-latest
+    # Only run on default branch to avoid token permission issues on forks.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scorecard-results.sarif
+          category: scorecard
+
+  # -------------------------------------------------------------------------
+  # CodeQL – static analysis of shell scripts and workflow YAML
+  # -------------------------------------------------------------------------
+  codeql:
+    name: CodeQL – static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["actions"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

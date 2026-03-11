@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [[ -n "${PREV_TAG}" ]]; then
+            LOG=$(git log --oneline "${PREV_TAG}..HEAD" 2>/dev/null || git log --oneline)
+          else
+            LOG=$(git log --oneline)
+          fi
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${LOG}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Docker Images
+
+            ### Builder
+            ```
+            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder:${{ github.ref_name }}
+            ```
+
+            ### Stack Images
+            ```
+            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/build:${{ github.ref_name }}
+            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/run:${{ github.ref_name }}
+            ```
+
+            ## Usage
+
+            ```bash
+            pack build my-app \
+              --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:${{ github.ref_name }}
+            ```
