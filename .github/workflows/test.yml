@@ -85,6 +85,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub (for pulling Paketo buildpack images)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # If credentials are not configured, anonymous pulls are used.
+        # Anonymous Docker Hub pulls are rate-limited to 100/6h per IP which
+        # is usually sufficient for a single CI run.
+        continue-on-error: true
+
       # Build stack images and tag them with the canonical "latest" names that
       # builder.toml references, so pack builder create uses local images.
       - name: Build build stack image (local, canonical tag)

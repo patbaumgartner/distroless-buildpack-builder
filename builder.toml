@@ -24,34 +24,34 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 # ---------------------------------------------------------------------------
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/java"
+  uri = "docker://docker.io/paketobuildpacks/java"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/go"
+  uri = "docker://docker.io/paketobuildpacks/go"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/nodejs"
+  uri = "docker://docker.io/paketobuildpacks/nodejs"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/python"
+  uri = "docker://docker.io/paketobuildpacks/python"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/ruby"
+  uri = "docker://docker.io/paketobuildpacks/ruby"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/php"
+  uri = "docker://docker.io/paketobuildpacks/php"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/dotnet-core"
+  uri = "docker://docker.io/paketobuildpacks/dotnet-core"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/rust"
+  uri = "docker://docker.io/paketobuildpacks/rust"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/nginx"
+  uri = "docker://docker.io/paketobuildpacks/nginx"
 
 [[buildpacks]]
-  uri = "docker://gcr.io/paketo-buildpacks/procfile"
+  uri = "docker://docker.io/paketobuildpacks/procfile"
 
 # ---------------------------------------------------------------------------
 # Detection order (first match wins)
