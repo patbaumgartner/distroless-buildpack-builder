@@ -75,22 +75,19 @@ jobs:
           load: true
           tags: distroless-builder/build:scan
 
-      - name: Run Trivy vulnerability scan – build image
-        uses: aquasecurity/trivy-action@0.30.0
-        continue-on-error: true
-        with:
-          image-ref: "distroless-builder/build:scan"
-          format: sarif
-          output: trivy-build.sarif
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-
-      - name: Ensure SARIF file exists before upload
-        if: always()
+      - name: Install Trivy
         run: |
-          if [[ ! -f trivy-build.sarif ]]; then
-            echo '{"version":"2.1.0","runs":[]}' > trivy-build.sarif
-          fi
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Run Trivy vulnerability scan – build image
+        run: |
+          trivy image \
+            --format sarif \
+            --output trivy-build.sarif \
+            --severity CRITICAL,HIGH \
+            --exit-code 0 \
+            distroless-builder/build:scan
 
       - name: Upload Trivy SARIF – build image
         uses: github/codeql-action/upload-sarif@v3
@@ -113,22 +110,19 @@ jobs:
           load: true
           tags: distroless-builder/run:scan
 
-      - name: Run Trivy vulnerability scan – run image
-        uses: aquasecurity/trivy-action@0.30.0
-        continue-on-error: true
-        with:
-          image-ref: "distroless-builder/run:scan"
-          format: sarif
-          output: trivy-run.sarif
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-
-      - name: Ensure SARIF file exists before upload
-        if: always()
+      - name: Install Trivy
         run: |
-          if [[ ! -f trivy-run.sarif ]]; then
-            echo '{"version":"2.1.0","runs":[]}' > trivy-run.sarif
-          fi
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Run Trivy vulnerability scan – run image
+        run: |
+          trivy image \
+            --format sarif \
+            --output trivy-run.sarif \
+            --severity CRITICAL,HIGH \
+            --exit-code 0 \
+            distroless-builder/run:scan
 
       - name: Upload Trivy SARIF – run image
         uses: github/codeql-action/upload-sarif@v3
@@ -147,23 +141,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.30.0
-        continue-on-error: true
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: sarif
-          output: trivy-fs.sarif
-          severity: "CRITICAL,HIGH,MEDIUM"
-          exit-code: "0"
-
-      - name: Ensure SARIF file exists before upload
-        if: always()
+      - name: Install Trivy
         run: |
-          if [[ ! -f trivy-fs.sarif ]]; then
-            echo '{"version":"2.1.0","runs":[]}' > trivy-fs.sarif
-          fi
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Run Trivy filesystem scan
+        run: |
+          trivy fs \
+            --format sarif \
+            --output trivy-fs.sarif \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            .
 
       - name: Upload Trivy SARIF – filesystem
         uses: github/codeql-action/upload-sarif@v3
@@ -202,31 +192,9 @@ jobs:
         with:
           sarif_file: scorecard-results.sarif
           category: scorecard
-
-  # -------------------------------------------------------------------------
-  # CodeQL – static analysis of shell scripts and workflow YAML
-  # -------------------------------------------------------------------------
-  codeql:
-    name: CodeQL – static analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["actions"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{ matrix.language }}"
+  # NOTE: CodeQL static analysis is handled by the repository's Default Setup
+  # (configured in Settings → Code Security → Code scanning).  Running an
+  # advanced-setup workflow alongside Default Setup is not supported and will
+  # cause "CodeQL analyses from advanced configurations cannot be processed
+  # when the default setup is enabled" errors.  Remove or disable Default
+  # Setup in the repository settings if you need a custom CodeQL workflow.
