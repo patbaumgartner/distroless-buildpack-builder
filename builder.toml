@@ -45,9 +45,6 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
   uri = "docker://docker.io/paketobuildpacks/dotnet-core"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/nginx"
-
-[[buildpacks]]
   uri = "docker://docker.io/paketobuildpacks/procfile"
 
 # ---------------------------------------------------------------------------
@@ -81,10 +78,6 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 [[order]]
   [[order.group]]
     id = "paketo-buildpacks/dotnet-core"
-
-[[order]]
-  [[order.group]]
-    id = "paketo-buildpacks/nginx"
 
 [[order]]
   [[order.group]]
