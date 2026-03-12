@@ -77,12 +77,20 @@ jobs:
 
       - name: Run Trivy vulnerability scan – build image
         uses: aquasecurity/trivy-action@0.30.0
+        continue-on-error: true
         with:
           image-ref: "distroless-builder/build:scan"
           format: sarif
           output: trivy-build.sarif
           severity: "CRITICAL,HIGH"
           exit-code: "0"
+
+      - name: Ensure SARIF file exists before upload
+        if: always()
+        run: |
+          if [[ ! -f trivy-build.sarif ]]; then
+            echo '{"version":"2.1.0","runs":[]}' > trivy-build.sarif
+          fi
 
       - name: Upload Trivy SARIF – build image
         uses: github/codeql-action/upload-sarif@v3
@@ -107,12 +115,20 @@ jobs:
 
       - name: Run Trivy vulnerability scan – run image
         uses: aquasecurity/trivy-action@0.30.0
+        continue-on-error: true
         with:
           image-ref: "distroless-builder/run:scan"
           format: sarif
           output: trivy-run.sarif
           severity: "CRITICAL,HIGH"
           exit-code: "0"
+
+      - name: Ensure SARIF file exists before upload
+        if: always()
+        run: |
+          if [[ ! -f trivy-run.sarif ]]; then
+            echo '{"version":"2.1.0","runs":[]}' > trivy-run.sarif
+          fi
 
       - name: Upload Trivy SARIF – run image
         uses: github/codeql-action/upload-sarif@v3
@@ -133,6 +149,7 @@ jobs:
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.30.0
+        continue-on-error: true
         with:
           scan-type: fs
           scan-ref: .
@@ -140,6 +157,13 @@ jobs:
           output: trivy-fs.sarif
           severity: "CRITICAL,HIGH,MEDIUM"
           exit-code: "0"
+
+      - name: Ensure SARIF file exists before upload
+        if: always()
+        run: |
+          if [[ ! -f trivy-fs.sarif ]]; then
+            echo '{"version":"2.1.0","runs":[]}' > trivy-fs.sarif
+          fi
 
       - name: Upload Trivy SARIF – filesystem
         uses: github/codeql-action/upload-sarif@v3

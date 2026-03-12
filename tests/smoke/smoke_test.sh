@@ -14,8 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 REGISTRY="${REGISTRY:-ghcr.io/patbaumgartner/distroless-buildpack-builder}"
-BUILD_IMAGE="${REGISTRY}/build:latest"
-RUN_IMAGE="${REGISTRY}/run:latest"
+BUILD_IMAGE="${BUILD_IMAGE:-${REGISTRY}/build:latest}"
+RUN_IMAGE="${RUN_IMAGE:-${REGISTRY}/run:latest}"
 BUILDER_IMAGE="${REGISTRY}:latest"
 EXPECTED_STACK_ID="io.buildpacks.stacks.jammy"
 
