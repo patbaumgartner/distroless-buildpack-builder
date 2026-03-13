@@ -45,14 +45,14 @@ jobs:
           no-fail: true
 
       - name: Upload hadolint SARIF (build image)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: hadolint-build.sarif
           category: hadolint-build
 
       - name: Upload hadolint SARIF (run image)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: hadolint-run.sarif
@@ -90,7 +90,7 @@ jobs:
             distroless-builder/build:scan
 
       - name: Upload Trivy SARIF – build image
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-build.sarif
@@ -125,7 +125,7 @@ jobs:
             distroless-builder/run:scan
 
       - name: Upload Trivy SARIF – run image
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-run.sarif
@@ -156,7 +156,7 @@ jobs:
             .
 
       - name: Upload Trivy SARIF – filesystem
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-fs.sarif
@@ -188,7 +188,7 @@ jobs:
           publish_results: true
 
       - name: Upload Scorecard SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: scorecard-results.sarif
           category: scorecard
