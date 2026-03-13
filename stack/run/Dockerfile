@@ -12,7 +12,7 @@
 # binary into this image at export time, so no shell is required at runtime.
 # ---------------------------------------------------------------------------
 
-FROM ubuntu:22.04 AS ubuntu-setup
+FROM ubuntu:24.04 AS ubuntu-setup
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
