@@ -1,0 +1,185 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Allow manual triggering for on-demand integration test runs.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+  # Local tag used for the builder image created during CI (avoids GHCR pull).
+  BUILDER_LOCAL_TAG: distroless-builder:ci
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Smoke tests: build stack images locally and validate CNB labels.
+  # Fast check that does not require pack or buildpack downloads.
+  # -------------------------------------------------------------------------
+  smoke-tests:
+    name: Smoke tests – stack image labels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build build stack image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/build
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/build:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build run stack image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/run
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/run:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate stack image labels
+        run: bash tests/smoke/smoke_test.sh
+        env:
+          BUILD_IMAGE: ${{ env.IMAGE_BASE }}/build:test
+          RUN_IMAGE: ${{ env.IMAGE_BASE }}/run:test
+
+  # -------------------------------------------------------------------------
+  # Integration tests: build stack images + builder locally, then build and
+  # run each sample application.  All three language tests run in a single job
+  # so the builder is created only once (pack builder create downloads all
+  # Paketo buildpacks and is expensive to repeat per-job).
+  # -------------------------------------------------------------------------
+  integration-tests:
+    name: Integration – build and run samples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.7.4
+
+      - name: Log in to GHCR (read-only, for pulling Paketo buildpacks)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub (for pulling Paketo buildpack images)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # If credentials are not configured, anonymous pulls are used.
+        # Anonymous Docker Hub pulls are rate-limited to 100/6h per IP which
+        # is usually sufficient for a single CI run.
+        continue-on-error: true
+
+      # Build stack images and tag them with the canonical "latest" names that
+      # builder.toml references, so pack builder create uses local images.
+      - name: Build build stack image (local, canonical tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/build
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/build:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build run stack image (local, canonical tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stack/run
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/run:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Create the builder from the locally-tagged stack images.
+      # --pull-policy if-not-present ensures local images are used instead of
+      # pulling from GHCR (which has no image yet on PR branches).
+      - name: Create builder locally
+        run: |
+          pack builder create "${{ env.BUILDER_LOCAL_TAG }}" \
+            --config builder.toml \
+            --pull-policy if-not-present
+
+      # ----- Node.js --------------------------------------------------------
+      - name: Build Node.js sample with pack
+        run: |
+          pack build distroless-test/nodejs:ci \
+            --path ./samples/nodejs \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Node.js container and verify response
+        run: |
+          docker run -d --name nodejs-test -p 8080:8080 distroless-test/nodejs:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8080/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f nodejs-test
+
+      # ----- Go -------------------------------------------------------------
+      - name: Build Go sample with pack
+        run: |
+          pack build distroless-test/go:ci \
+            --path ./samples/go \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Go container and verify response
+        run: |
+          docker run -d --name go-test -p 8081:8080 distroless-test/go:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8081/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f go-test
+
+      # ----- Java -----------------------------------------------------------
+      - name: Build Java sample with pack
+        run: |
+          pack build distroless-test/java:ci \
+            --path ./samples/java \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Java container and verify response
+        run: |
+          docker run -d --name java-test -p 8082:8080 distroless-test/java:ci
+          for i in $(seq 1 30); do
+            RESP=$(curl -sf http://localhost:8082/ 2>/dev/null || echo "")
+            if echo "${RESP}" | grep -qi "hello"; then
+              echo "Java app responded: ${RESP}"
+              break
+            fi
+            echo "Waiting... (${i}/30)"
+            sleep 3
+          done
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f java-test

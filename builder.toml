@@ -1,0 +1,84 @@
+# Distroless Buildpack Builder
+# Provides a secure, minimal runtime environment using Google Distroless images
+# while supporting all major Paketo Buildpacks for building applications.
+#
+# Usage:
+#   pack build my-app --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:latest
+#
+# See: https://buildpacks.io/docs/operator-guide/create-a-builder/
+
+description = "A Cloud Native Buildpack builder using Google Distroless run images and Paketo Buildpacks for secure, minimal production containers."
+
+[stack]
+  id            = "io.buildpacks.stacks.jammy"
+  build-image   = "ghcr.io/patbaumgartner/distroless-buildpack-builder/build:latest"
+  run-image     = "ghcr.io/patbaumgartner/distroless-buildpack-builder/run:latest"
+
+# Lifecycle version – keep in sync with the versions supported by the
+# buildpacks listed below.
+[lifecycle]
+  version = "0.20.6"
+
+# ---------------------------------------------------------------------------
+# Buildpacks embedded into this builder image
+# ---------------------------------------------------------------------------
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/java"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/go"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/nodejs"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/python"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/ruby"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/php"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/dotnet-core"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/procfile"
+
+# ---------------------------------------------------------------------------
+# Detection order (first match wins)
+# ---------------------------------------------------------------------------
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/java"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/go"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/nodejs"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/python"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/ruby"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/php"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/dotnet-core"
+
+[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/procfile"
