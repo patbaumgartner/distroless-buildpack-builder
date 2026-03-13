@@ -36,7 +36,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build build stack image (local)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/build
           load: true
@@ -45,7 +45,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build run stack image (local)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/run
           load: true
@@ -98,7 +98,7 @@ jobs:
       # Build stack images and tag them with the canonical "latest" names that
       # builder.toml references, so pack builder create uses local images.
       - name: Build build stack image (local, canonical tag)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/build
           load: true
@@ -107,7 +107,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build run stack image (local, canonical tag)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/run
           load: true
