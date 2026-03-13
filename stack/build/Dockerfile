@@ -2,7 +2,7 @@
 # Build stack image – used during the *build* phase of the CNB lifecycle.
 # Based on Ubuntu 22.04 Jammy to provide a full toolchain for compiling apps.
 # ---------------------------------------------------------------------------
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ARG CNB_USER_ID=1000
 ARG CNB_GROUP_ID=1000
