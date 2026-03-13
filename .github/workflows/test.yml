@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build build stack image (local)
         uses: docker/build-push-action@v6
@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Set up pack CLI
         uses: buildpacks/github-actions/setup-pack@v5.7.4
