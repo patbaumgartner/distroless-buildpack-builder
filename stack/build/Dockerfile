@@ -16,21 +16,35 @@ LABEL org.opencontainers.image.source="https://github.com/patbaumgartner/distrol
 LABEL org.opencontainers.image.description="Build stack image for the Distroless Buildpack Builder (Ubuntu 24.04 Noble)"
 
 # Install build-time dependencies required by common Paketo buildpacks.
+# The package list mirrors the official Paketo build stack (paketobuildpacks/
+# build-jammy-base) to ensure compatibility with all supported buildpacks.
 # DEBIAN_FRONTEND=noninteractive prevents interactive prompts during apt-get.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       build-essential \
        ca-certificates \
        curl \
-       wget \
+       fontconfig \
        git \
        jq \
-       build-essential \
-       libssl-dev \
-       zlib1g-dev \
+       libexpat1 \
        libffi-dev \
+       libgmp-dev \
+       libicu-dev \
+       libreadline-dev \
+       libssl-dev \
+       libxml2-dev \
+       libxslt-dev \
        libyaml-dev \
+       netbase \
+       openssl \
+       pkg-config \
+       tzdata \
        unzip \
+       wget \
+       xz-utils \
        zip \
+       zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create the CNB user/group.

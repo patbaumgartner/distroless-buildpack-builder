@@ -33,7 +33,11 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        cnb \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       libexpat1 \
        libyaml-0-2 \
+       netbase \
+       openssl \
+       tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
@@ -50,7 +54,14 @@ COPY --from=ubuntu-setup /etc/group  /etc/group
 
 # Inject runtime libraries required by language buildpacks that are not
 # present in the distroless base image.
+COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libexpat* /usr/lib/x86_64-linux-gnu/
 COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libyaml* /usr/lib/x86_64-linux-gnu/
+
+# Inject timezone data and network configuration for apps that need them.
+COPY --from=ubuntu-setup /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=ubuntu-setup /etc/services /etc/services
+COPY --from=ubuntu-setup /etc/protocols /etc/protocols
+COPY --from=ubuntu-setup /etc/ssl/certs /etc/ssl/certs
 
 LABEL io.buildpacks.stack.id="${CNB_STACK_ID}"
 LABEL io.buildpacks.base.distro.name="distroless"
