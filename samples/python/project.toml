@@ -1,0 +1,12 @@
+# Project descriptor for Cloud Native Buildpacks
+# https://buildpacks.io/docs/for-app-developers/how-to/build-inputs/specify-build-time-environment-variables/
+#
+# BP_DIRECT_PROCESS tells the Procfile buildpack to exec the command directly
+# instead of wrapping it in a shell.  This is required for distroless run
+# images that contain no shell.
+[_]
+schema-version = "0.2"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_DIRECT_PROCESS"
+  value = "true"
