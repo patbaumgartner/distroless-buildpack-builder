@@ -178,7 +178,7 @@ jobs:
 
       - name: Run Python container and verify response
         run: |
-          docker run -d --name python-test -p 8085:8080 distroless-test/python:ci
+          docker run -d --name python-test -e PORT=8080 -p 8085:8080 distroless-test/python:ci
           sleep 5
           RESP=$(curl -sf http://localhost:8085/ || echo "FAILED")
           echo "Response: ${RESP}"
@@ -196,7 +196,7 @@ jobs:
 
       - name: Run Ruby container and verify response
         run: |
-          docker run -d --name ruby-test -p 8086:8080 distroless-test/ruby:ci
+          docker run -d --name ruby-test -e PORT=8080 -p 8086:8080 distroless-test/ruby:ci
           sleep 5
           RESP=$(curl -sf http://localhost:8086/ || echo "FAILED")
           echo "Response: ${RESP}"
