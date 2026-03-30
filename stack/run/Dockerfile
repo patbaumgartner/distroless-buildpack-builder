@@ -2,16 +2,26 @@
 # Run stack image – used as the *runtime* base for built application images.
 #
 # Multi-stage build:
-#   Stage 1 (ubuntu-setup): Creates the CNB user and group entries that must
-#            appear in /etc/passwd and /etc/group in the final image.
-#   Stage 2 (final):        Google Distroless base image with the user metadata
-#            injected from Stage 1.  Distroless contains no shell, package
-#            manager, or debug tools – providing a minimal attack surface.
+#   Stage 1 (icu-compat):   Extracts ICU 70 libs from Ubuntu 22.04 for Paketo
+#            buildpack binaries compiled against Jammy.
+#   Stage 2 (ubuntu-setup): Creates the CNB user/group and stages runtime libs.
+#   Stage 3 (final):        Google Distroless base image with the user metadata
+#            and libraries injected from the earlier stages.
 #
 # The CNB lifecycle (v0.18+) copies the compiled application and its launcher
 # binary into this image at export time, so no shell is required at runtime.
 # ---------------------------------------------------------------------------
 
+# Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04 (Jammy)
+FROM ubuntu:22.04 AS icu-compat
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ARCH="$(uname -m)" \
+    && mkdir -p /staging \
+    && cp -a /usr/lib/${ARCH}-linux-gnu/libicu*.so.70* /staging/
+
+# Stage 2: Ubuntu setup (user/group + runtime libraries)
 FROM ubuntu:24.04 AS ubuntu-setup
 
 ARG CNB_USER_ID=1002
@@ -77,6 +87,9 @@ COPY --from=ubuntu-setup /etc/group  /etc/group
 # correct arch-specific path (x86_64-linux-gnu or aarch64-linux-gnu).
 COPY --from=ubuntu-setup /staging/usr/lib/ /usr/lib/
 COPY --from=ubuntu-setup /staging/lib/ /lib/
+
+# Inject ICU 70 compatibility libraries for Paketo buildpack binaries.
+COPY --from=icu-compat /staging/ /usr/lib/
 
 # Inject timezone data and network configuration for apps that need them.
 COPY --from=ubuntu-setup /usr/share/zoneinfo /usr/share/zoneinfo
