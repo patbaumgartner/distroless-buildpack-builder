@@ -45,7 +45,8 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        openssl \
        tzdata \
     && rm -rf /var/lib/apt/lists/* \
-    && LIBDIR="$(dpkg-architecture -qDEB_HOST_MULTIARCH)" \
+    && ARCH="$(uname -m)" \
+    && LIBDIR="${ARCH}-linux-gnu" \
     && mkdir -p "/staging/usr/lib/${LIBDIR}" \
     && cd "/usr/lib/${LIBDIR}" \
     && cp -a libcrypt*  "/staging/usr/lib/${LIBDIR}/" \
