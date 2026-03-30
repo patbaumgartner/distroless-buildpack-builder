@@ -4,9 +4,16 @@
 # BP_DIRECT_PROCESS tells the Procfile buildpack to exec the command directly
 # instead of wrapping it in a shell.  This is required for distroless run
 # images that contain no shell.
+#
+# BP_MRI_VERSION selects a non-deprecated Ruby version that is compiled
+# against the system libraries available in the Ubuntu 24.04 build stack.
 [_]
 schema-version = "0.2"
 
 [[ io.buildpacks.build.env ]]
   name  = "BP_DIRECT_PROCESS"
   value = "true"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_MRI_VERSION"
+  value = "3.4.*"
