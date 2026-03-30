@@ -16,7 +16,7 @@ runtime base, while supporting all major
 
 | Component | Base image | Purpose |
 |-----------|-----------|---------|
-| **Build stack** | `ubuntu:22.04` | Full toolchain for compiling apps |
+| **Build stack** | `ubuntu:24.04` | Full toolchain for compiling apps |
 | **Run stack** | `gcr.io/distroless/cc:nonroot` | Minimal, shell-free runtime with C++ runtime |
 | **Builder** | CNB lifecycle + Paketo Buildpacks | Orchestrates builds |
 
@@ -221,11 +221,12 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 │   ├── integration/          # End-to-end builder tests
 │   └── smoke/                # Fast label + config validation tests
 └── .github/
-    ├── dependabot.yml        # Automated dependency updates
+    ├── dependabot.yml        # Automated dependency updates (GitHub Actions, Docker, npm, Go, Maven)
     └── workflows/
         ├── build-and-push.yml  # Build + push stack images + builder (GHCR + Docker Hub)
         ├── test.yml            # Smoke + integration tests (incl. mvn spring-boot:build-image)
-        ├── security-scan.yml   # Trivy, Hadolint, OSSF Scorecard
+        ├── security-scan.yml   # Trivy CVE scan + Hadolint Dockerfile lint
+        ├── scorecard.yml       # OSSF Scorecard supply-chain security (weekly)
         ├── benchmark.yml       # Build-time + image-size benchmarks (nodejs, go, java)
         └── release.yml         # Create GitHub releases on version tags
 ```
@@ -238,7 +239,8 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 |----------|---------|-------------|
 | **Build and Push** | push to `main`, version tags | Build stack images + CNB builder, push to GHCR and Docker Hub with SBOM/provenance |
 | **Integration Tests** | push, pull_request | Smoke tests → integration tests (pack + mvn spring-boot:build-image) |
-| **Security Scan** | push, pull_request, weekly | Trivy CVE scan, Hadolint, OSSF Scorecard |
+| **Security Scan** | push, pull_request, weekly | Trivy CVE scan of container images + filesystem; Hadolint Dockerfile lint |
+| **OSSF Scorecard** | push to `main`, weekly | Supply-chain security posture analysis |
 | **Benchmark** | push to `main`, weekly | Measure build times + image sizes vs. Paketo baseline (nodejs, go, java) |
 | **Release** | version tags (`v*`) | Create a GitHub Release with notes and pull instructions |
 
@@ -253,11 +255,11 @@ The run image is based on `gcr.io/distroless/cc:nonroot`:
 - **Non-root user** (uid 1002) by default
 - **C++ runtime included** (`libstdc++`, `libgcc`) – required by Node.js and other C++ runtimes
 
-Security scanning is performed on every push using:
+Security scanning is performed automatically:
 
-- **Trivy** – CVE scanning of container images and filesystem
-- **Hadolint** – Dockerfile best-practice linting
-- **OSSF Scorecard** – Supply-chain security posture (weekly)
+- **Trivy** – CVE scanning of container images and filesystem (every push + weekly)
+- **Hadolint** – Dockerfile best-practice linting (every push)
+- **OSSF Scorecard** – Supply-chain security posture (weekly, dedicated workflow)
 
 All images are signed with **SLSA build provenance** and include a **Software
 Bill of Materials (SBOM)** accessible via:

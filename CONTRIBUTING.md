@@ -98,7 +98,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 feat(stack): upgrade distroless to latest nonroot tag
 fix(builder): correct lifecycle version constraint
-chore(deps): bump ubuntu base image to 22.04.4
+chore(deps): bump ubuntu base image to 24.04
 docs: add section on custom stack IDs
 ```
 

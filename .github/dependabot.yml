@@ -6,7 +6,7 @@ updates:
   # Groups all action bumps into a single weekly PR to reduce noise.
   # NOTE: buildpack URIs and the lifecycle version in builder.toml are Docker
   # image / GitHub Release references embedded in TOML, which Dependabot
-  # cannot track natively.  These are handled by .github/renovate.json via
+  # cannot track natively.  These are handled by renovate.json via
   # Renovate's custom.regex manager (requires the Renovate GitHub App).
   # ---------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
