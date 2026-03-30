@@ -17,13 +17,14 @@ runtime base, while supporting all major
 | Component | Base image | Purpose |
 |-----------|-----------|---------|
 | **Build stack** | `ubuntu:22.04` | Full toolchain for compiling apps |
-| **Run stack** | `gcr.io/distroless/base-nossl:nonroot` | Minimal, shell-free runtime |
+| **Run stack** | `gcr.io/distroless/cc:nonroot` | Minimal, shell-free runtime with C++ runtime |
 | **Builder** | CNB lifecycle + Paketo Buildpacks | Orchestrates builds |
 
-The **build image** is a standard Ubuntu 22.04 Jammy image with common build
-tools.  The **run image** is a Google Distroless image with *no shell, no
-package manager, no debug tools* – drastically reducing the attack surface of
-every application container built with this builder.
+The **build image** is an Ubuntu 24.04 Noble image with common build tools and
+a non-root `cnb` user (UID 1000).  The **run image** is a Google Distroless
+image with *no shell, no package manager, no debug tools* – drastically
+reducing the attack surface of every application container built with this
+builder.
 
 ---
 
@@ -31,15 +32,13 @@ every application container built with this builder.
 
 | Language | Buildpack |
 |----------|-----------|
-| Java (JVM) | `paketo-buildpacks/java` |
+| Java / Spring Boot | `paketo-buildpacks/java` |
 | Go | `paketo-buildpacks/go` |
 | Node.js | `paketo-buildpacks/nodejs` |
 | Python | `paketo-buildpacks/python` |
 | Ruby | `paketo-buildpacks/ruby` |
 | PHP | `paketo-buildpacks/php` |
 | .NET Core | `paketo-buildpacks/dotnet-core` |
-| Rust | `paketo-buildpacks/rust` |
-| NGINX | `paketo-buildpacks/nginx` |
 | Procfile | `paketo-buildpacks/procfile` |
 
 ---
@@ -51,29 +50,66 @@ every application container built with this builder.
 - [Docker](https://docs.docker.com/get-docker/) ≥ 20.10
 - [pack CLI](https://buildpacks.io/docs/tools/pack/) ≥ 0.33
 
-### Build your application
+### Build your application with `pack`
 
 ```bash
 # Node.js application
 pack build my-nodejs-app \
-  --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:latest \
+  --builder patbaumgartner/distroless-buildpack-builder:latest \
   --path ./my-nodejs-app
 
 # Go application
 pack build my-go-app \
-  --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:latest \
+  --builder patbaumgartner/distroless-buildpack-builder:latest \
   --path ./my-go-app
 
 # Java / Spring Boot application
 pack build my-java-app \
-  --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:latest \
+  --builder patbaumgartner/distroless-buildpack-builder:latest \
   --path ./my-java-app
 ```
+
+### Build a Spring Boot application with `mvn spring-boot:build-image`
+
+The Spring Boot Maven plugin supports Cloud Native Buildpacks natively.
+Configure the builder once in your `pom.xml`:
+
+```xml
+<plugin>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-maven-plugin</artifactId>
+  <configuration>
+    <image>
+      <builder>patbaumgartner/distroless-buildpack-builder:latest</builder>
+      <pullPolicy>IF_NOT_PRESENT</pullPolicy>
+    </image>
+  </configuration>
+</plugin>
+```
+
+Then build your image with a single Maven command – no Dockerfile required:
+
+```bash
+mvn spring-boot:build-image
+```
+
+Or override the builder on the command line without changing `pom.xml`:
+
+```bash
+mvn spring-boot:build-image \
+  -Dspring-boot.build-image.builder=patbaumgartner/distroless-buildpack-builder:latest
+```
+
+The resulting image runs on a minimal Google Distroless base, giving you:
+- ✅ No shell – smaller attack surface
+- ✅ No package manager – nothing to exploit
+- ✅ Non-root user by default
+- ✅ Full Spring Boot / Actuator support (JVM is bundled by the Paketo buildpack)
 
 ### Set as default builder
 
 ```bash
-pack config default-builder ghcr.io/patbaumgartner/distroless-buildpack-builder:latest
+pack config default-builder patbaumgartner/distroless-buildpack-builder:latest
 pack build my-app
 ```
 
@@ -85,16 +121,38 @@ docker run --rm -p 8080:8080 my-nodejs-app
 
 ---
 
-## Stack Images
+## Registries
 
-Both stack images are automatically published to GitHub Container Registry on
-every push to `main` and on every version tag (`v*`).
+The builder and stack images are published to both **Docker Hub** and **GitHub
+Container Registry (GHCR)** on every push to `main` and on every version tag.
 
-| Image | Tag | Description |
-|-------|-----|-------------|
-| `ghcr.io/patbaumgartner/distroless-buildpack-builder/build` | `latest` | Build stack (Ubuntu 22.04) |
-| `ghcr.io/patbaumgartner/distroless-buildpack-builder/run` | `latest` | Run stack (Distroless) |
-| `ghcr.io/patbaumgartner/distroless-buildpack-builder` | `latest` | CNB Builder |
+### Docker Hub (recommended for general use)
+
+```bash
+docker pull patbaumgartner/distroless-buildpack-builder:latest        # Builder
+docker pull patbaumgartner/distroless-buildpack-builder-build:latest  # Build stack
+docker pull patbaumgartner/distroless-buildpack-builder-run:latest    # Run stack
+```
+
+### GitHub Container Registry
+
+```bash
+docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder:latest        # Builder
+docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/build:latest  # Build stack
+docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/run:latest    # Run stack
+```
+
+| Image | Registry | Tag | Description |
+|-------|----------|-----|-------------|
+| `patbaumgartner/distroless-buildpack-builder` | Docker Hub | `latest` | CNB Builder |
+| `patbaumgartner/distroless-buildpack-builder-build` | Docker Hub | `latest` | Build stack (Ubuntu 24.04) |
+| `patbaumgartner/distroless-buildpack-builder-run` | Docker Hub | `latest` | Run stack (Distroless) |
+| `ghcr.io/patbaumgartner/distroless-buildpack-builder` | GHCR | `latest` | CNB Builder |
+| `ghcr.io/patbaumgartner/distroless-buildpack-builder/build` | GHCR | `latest` | Build stack (Ubuntu 24.04) |
+| `ghcr.io/patbaumgartner/distroless-buildpack-builder/run` | GHCR | `latest` | Run stack (Distroless) |
+
+All images include SBOM (Software Bill of Materials) and build provenance
+attestations in [SLSA](https://slsa.dev/) format.
 
 ---
 
@@ -132,6 +190,20 @@ make test-smoke
 
 ---
 
+## Sample Applications
+
+The `samples/` directory contains ready-to-build applications for every major
+language.  All samples expose a `/` and `/health` endpoint on port `8080`.
+
+| Sample | Language | Build command |
+|--------|----------|--------------|
+| `samples/nodejs` | Node.js (Express 5) | `pack build my-app --path ./samples/nodejs --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/go` | Go | `pack build my-app --path ./samples/go --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/java` | Java 21 / Spring Boot (pack) | `pack build my-app --path ./samples/java --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/java` | Java 21 / Spring Boot (Maven) | `cd samples/java && mvn spring-boot:build-image` |
+
+---
+
 ## Repository Structure
 
 ```
@@ -139,10 +211,10 @@ make test-smoke
 ├── builder.toml              # CNB builder configuration
 ├── Makefile                  # Local build automation
 ├── stack/
-│   ├── build/Dockerfile      # Build stack image (Ubuntu 22.04 Jammy)
+│   ├── build/Dockerfile      # Build stack image (Ubuntu 24.04 Noble)
 │   └── run/Dockerfile        # Run stack image (Google Distroless)
 ├── samples/
-│   ├── java/                 # Spring Boot sample application
+│   ├── java/                 # Spring Boot sample (pack + mvn spring-boot:build-image)
 │   ├── nodejs/               # Express.js sample application
 │   └── go/                   # Go HTTP sample application
 ├── tests/
@@ -151,10 +223,10 @@ make test-smoke
 └── .github/
     ├── dependabot.yml        # Automated dependency updates
     └── workflows/
-        ├── build-and-push.yml  # Build + push stack images + builder
-        ├── test.yml            # Integration tests
-        ├── security-scan.yml   # Trivy, Hadolint, CodeQL, OSSF Scorecard
-        ├── benchmark.yml       # Build-time + image-size benchmarks
+        ├── build-and-push.yml  # Build + push stack images + builder (GHCR + Docker Hub)
+        ├── test.yml            # Smoke + integration tests (incl. mvn spring-boot:build-image)
+        ├── security-scan.yml   # Trivy, Hadolint, OSSF Scorecard
+        ├── benchmark.yml       # Build-time + image-size benchmarks (nodejs, go, java)
         └── release.yml         # Create GitHub releases on version tags
 ```
 
@@ -164,29 +236,37 @@ make test-smoke
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
-| **Build and Push** | push to `main`, version tags | Build stack images + CNB builder, push to GHCR |
-| **Integration Tests** | push, pull_request | Build sample apps with the builder, verify they run |
-| **Security Scan** | push, pull_request, weekly | Trivy CVE scan, Hadolint, CodeQL, OSSF Scorecard |
-| **Benchmark** | push to `main`, weekly | Measure build times + image sizes vs. Paketo baseline |
+| **Build and Push** | push to `main`, version tags | Build stack images + CNB builder, push to GHCR and Docker Hub with SBOM/provenance |
+| **Integration Tests** | push, pull_request | Smoke tests → integration tests (pack + mvn spring-boot:build-image) |
+| **Security Scan** | push, pull_request, weekly | Trivy CVE scan, Hadolint, OSSF Scorecard |
+| **Benchmark** | push to `main`, weekly | Measure build times + image sizes vs. Paketo baseline (nodejs, go, java) |
 | **Release** | version tags (`v*`) | Create a GitHub Release with notes and pull instructions |
 
 ---
 
 ## Security
 
-The run image is based on `gcr.io/distroless/base-nossl:nonroot`:
+The run image is based on `gcr.io/distroless/cc:nonroot`:
 
 - **No shell** – attackers cannot execute shell commands
 - **No package manager** – cannot install additional tools at runtime
 - **Non-root user** (uid 1002) by default
-- **No libc SSL** (`base-nossl`) – use when your app handles TLS itself
+- **C++ runtime included** (`libstdc++`, `libgcc`) – required by Node.js and other C++ runtimes
 
 Security scanning is performed on every push using:
 
 - **Trivy** – CVE scanning of container images and filesystem
 - **Hadolint** – Dockerfile best-practice linting
-- **CodeQL** – Static analysis of GitHub Actions workflows
 - **OSSF Scorecard** – Supply-chain security posture (weekly)
+
+All images are signed with **SLSA build provenance** and include a **Software
+Bill of Materials (SBOM)** accessible via:
+
+```bash
+docker buildx imagetools inspect \
+  patbaumgartner/distroless-buildpack-builder:latest \
+  --format '{{ json .SBOM }}'
+```
 
 Results are published to the **Security** tab of this repository as SARIF reports.
 

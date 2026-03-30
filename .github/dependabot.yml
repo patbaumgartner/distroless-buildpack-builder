@@ -2,7 +2,12 @@ version: 2
 
 updates:
   # ---------------------------------------------------------------------------
-  # GitHub Actions – keep workflow action versions up to date
+  # GitHub Actions – keep all workflow action versions up to date.
+  # Groups all action bumps into a single weekly PR to reduce noise.
+  # NOTE: buildpack URIs and the lifecycle version in builder.toml are Docker
+  # image / GitHub Release references embedded in TOML, which Dependabot
+  # cannot track natively.  These are handled by .github/renovate.json via
+  # Renovate's custom.regex manager (requires the Renovate GitHub App).
   # ---------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -10,15 +15,21 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "github-actions"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   # ---------------------------------------------------------------------------
-  # Docker – base image updates for stack/build and stack/run
+  # Docker – base image updates for the build-phase stack image.
+  # Tracks ubuntu:24.04 and any other FROM lines in the Dockerfile.
   # ---------------------------------------------------------------------------
   - package-ecosystem: "docker"
     directory: "/stack/build"
@@ -26,26 +37,43 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "docker"
+    open-pull-requests-limit: 5
+    groups:
+      build-stack-images:
+        patterns:
+          - "*"
 
+  # ---------------------------------------------------------------------------
+  # Docker – base image updates for the run-phase stack image.
+  # Tracks both the ubuntu:24.04 helper stage and the gcr.io/distroless image.
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "docker"
     directory: "/stack/run"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "docker"
+    open-pull-requests-limit: 5
+    groups:
+      run-stack-images:
+        patterns:
+          - "*"
 
   # ---------------------------------------------------------------------------
-  # npm – keep sample Node.js app dependencies current
+  # npm – keep the sample Node.js application dependencies current.
+  # Groups all npm bumps (express, etc.) into a single PR.
   # ---------------------------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/samples/nodejs"
@@ -53,14 +81,21 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "npm"
+    open-pull-requests-limit: 5
+    groups:
+      nodejs-dependencies:
+        patterns:
+          - "*"
 
   # ---------------------------------------------------------------------------
-  # Go modules – keep sample Go app dependencies current
+  # Go modules – keep the sample Go application dependencies and toolchain
+  # version current.
   # ---------------------------------------------------------------------------
   - package-ecosystem: "gomod"
     directory: "/samples/go"
@@ -68,14 +103,21 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "go"
+    open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
 
   # ---------------------------------------------------------------------------
-  # Maven – keep sample Java app dependencies current
+  # Maven – keep the sample Spring Boot application dependencies current,
+  # including the Spring Boot parent BOM and all managed libraries.
   # ---------------------------------------------------------------------------
   - package-ecosystem: "maven"
     directory: "/samples/java"
@@ -83,8 +125,19 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Europe/Zurich"
     commit-message:
       prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "java"
+    open-pull-requests-limit: 5
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot:*"
+      maven-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "org.springframework.boot:*"

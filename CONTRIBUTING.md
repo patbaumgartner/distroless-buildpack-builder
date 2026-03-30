@@ -57,6 +57,7 @@ Open an issue with the label `enhancement` and describe:
 |------|----------------|
 | Docker | 20.10 |
 | [pack CLI](https://buildpacks.io/docs/tools/pack/) | 0.33 |
+| Java / Maven | JDK 21 (for Java sample + `mvn spring-boot:build-image`) |
 | make | any recent version |
 | hadolint (optional) | 2.x |
 
@@ -105,12 +106,13 @@ docs: add section on custom stack IDs
 
 ## Updating Buildpack Versions
 
-Buildpack versions in `builder.toml` are managed by Dependabot. If you need to
-update them manually:
+Pinned buildpack versions and the CNB lifecycle version in `builder.toml` are
+managed automatically by **Renovate** (`.github/renovate.json`).  If you need
+to update them manually:
 
-1. Look up the current image digest on the registry (e.g., GCR or Docker Hub).
+1. Look up the current image tag on Docker Hub (e.g. `paketobuildpacks/procfile`).
 2. Update the `uri` in the relevant `[[buildpacks]]` block in `builder.toml`.
-3. Update the corresponding `id`/`version` in the `[[order]]` block if needed.
+3. Update the corresponding `version` in the matching `[[order.group]]` block.
 4. Build and test locally before opening a PR.
 
 ---

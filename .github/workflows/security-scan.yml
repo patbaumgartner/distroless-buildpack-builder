@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
   packages: read
 
 jobs:
@@ -24,12 +23,15 @@ jobs:
   hadolint:
     name: Hadolint – Dockerfile lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run hadolint on build Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: stack/build/Dockerfile
           format: sarif
@@ -37,7 +39,7 @@ jobs:
           no-fail: true
 
       - name: Run hadolint on run Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: stack/run/Dockerfile
           format: sarif
@@ -45,14 +47,14 @@ jobs:
           no-fail: true
 
       - name: Upload hadolint SARIF (build image)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: hadolint-build.sarif
           category: hadolint-build
 
       - name: Upload hadolint SARIF (run image)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: hadolint-run.sarif
@@ -64,12 +66,15 @@ jobs:
   trivy-build-image:
     name: Trivy – scan build stack image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build build stack image (local for scanning)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/build
           load: true
@@ -90,7 +95,7 @@ jobs:
             distroless-builder/build:scan
 
       - name: Upload Trivy SARIF – build image
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-build.sarif
@@ -99,12 +104,15 @@ jobs:
   trivy-run-image:
     name: Trivy – scan run stack image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build run stack image (local for scanning)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/run
           load: true
@@ -125,7 +133,7 @@ jobs:
             distroless-builder/run:scan
 
       - name: Upload Trivy SARIF – run image
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-run.sarif
@@ -137,9 +145,12 @@ jobs:
   trivy-fs:
     name: Trivy – filesystem scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Trivy
         run: |
@@ -156,45 +167,21 @@ jobs:
             .
 
       - name: Upload Trivy SARIF – filesystem
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
 
-  # -------------------------------------------------------------------------
-  # OSSF Scorecard – supply-chain security score
-  # -------------------------------------------------------------------------
-  scorecard:
-    name: OSSF Scorecard
-    runs-on: ubuntu-latest
-    # Only run on default branch to avoid token permission issues on forks.
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    permissions:
-      contents: read
-      security-events: write
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@v2.4.0
-        with:
-          results_file: scorecard-results.sarif
-          results_format: sarif
-          publish_results: true
-
-      - name: Upload Scorecard SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: scorecard-results.sarif
-          category: scorecard
-  # NOTE: CodeQL static analysis is handled by the repository's Default Setup
-  # (configured in Settings → Code Security → Code scanning).  Running an
-  # advanced-setup workflow alongside Default Setup is not supported and will
-  # cause "CodeQL analyses from advanced configurations cannot be processed
-  # when the default setup is enabled" errors.  Remove or disable Default
-  # Setup in the repository settings if you need a custom CodeQL workflow.
+# NOTE: OSSF Scorecard has been moved to its own dedicated workflow
+# (.github/workflows/scorecard.yml) because the Scorecard API rejects results
+# when any job in the same workflow has write permissions – even at the job
+# level. The scorecard workflow must stand alone with only read-level
+# top-level permissions.
+#
+# NOTE: CodeQL static analysis is handled by the repository's Default Setup
+# (configured in Settings → Code Security → Code scanning). Running an
+# advanced-setup workflow alongside Default Setup is not supported and will
+# cause "CodeQL analyses from advanced configurations cannot be processed
+# when the default setup is enabled" errors. Remove or disable Default
+# Setup in the repository settings if you need a custom CodeQL workflow.

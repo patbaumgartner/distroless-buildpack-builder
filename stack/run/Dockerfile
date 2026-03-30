@@ -12,12 +12,17 @@
 # binary into this image at export time, so no shell is required at runtime.
 # ---------------------------------------------------------------------------
 
-FROM ubuntu:22.04 AS ubuntu-setup
+FROM ubuntu:24.04 AS ubuntu-setup
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
 
-RUN groupadd --gid "${CNB_GROUP_ID}" cnb \
+# Ubuntu 24.04 ships with a default 'ubuntu' user (UID/GID 1000); remove it
+# only if it exists so we can claim GID 1000 for the CNB group without conflict.
+# The conditional guards against failures when the base image ships without it.
+RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
+    && if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu; fi \
+    && groupadd --gid "${CNB_GROUP_ID}" cnb \
     && useradd \
        --uid  "${CNB_USER_ID}" \
        --gid  cnb \
@@ -26,7 +31,7 @@ RUN groupadd --gid "${CNB_GROUP_ID}" cnb \
 
 # ---------------------------------------------------------------------------
 
-FROM gcr.io/distroless/base-nossl:nonroot
+FROM gcr.io/distroless/cc:nonroot
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
@@ -38,10 +43,10 @@ COPY --from=ubuntu-setup /etc/group  /etc/group
 
 LABEL io.buildpacks.stack.id="${CNB_STACK_ID}"
 LABEL io.buildpacks.base.distro.name="distroless"
-LABEL io.buildpacks.base.distro.version="nonroot"
+LABEL io.buildpacks.base.distro.version="cc"
 LABEL maintainer="patbaumgartner"
 LABEL org.opencontainers.image.source="https://github.com/patbaumgartner/distroless-buildpack-builder"
-LABEL org.opencontainers.image.description="Run stack image for the Distroless Buildpack Builder (Google Distroless base-nossl)"
+LABEL org.opencontainers.image.description="Run stack image for the Distroless Buildpack Builder (Google Distroless cc)"
 
 # Use the CNB user (1002) as the default unprivileged runtime user.
 USER ${CNB_USER_ID}:${CNB_GROUP_ID}

@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.5</version>
     <relativePath/>
   </parent>
 
@@ -42,6 +42,23 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <image>
+            <!--
+              Use our distroless builder so that `mvn spring-boot:build-image`
+              produces a slim, shell-free runtime image automatically.
+
+              Override on the command line:
+                mvn spring-boot:build-image \
+                  -Dspring-boot.build-image.builder=patbaumgartner/distroless-buildpack-builder:latest
+
+              Or leave the default below and just run:
+                mvn spring-boot:build-image
+            -->
+            <builder>patbaumgartner/distroless-buildpack-builder:latest</builder>
+            <pullPolicy>IF_NOT_PRESENT</pullPolicy>
+          </image>
+        </configuration>
       </plugin>
     </plugins>
   </build>

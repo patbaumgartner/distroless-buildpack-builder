@@ -17,7 +17,7 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 # Lifecycle version – keep in sync with the versions supported by the
 # buildpacks listed below.
 [lifecycle]
-  version = "0.20.6"
+  version = "0.21.7"
 
 # ---------------------------------------------------------------------------
 # Buildpacks embedded into this builder image
@@ -45,7 +45,7 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
   uri = "docker://docker.io/paketobuildpacks/dotnet-core"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/procfile"
+  uri = "docker://docker.io/paketobuildpacks/procfile:5.13.1"
 
 # ---------------------------------------------------------------------------
 # Detection order (first match wins)
@@ -81,4 +81,5 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/procfile"
+    id      = "paketo-buildpacks/procfile"
+    version = "5.13.1"

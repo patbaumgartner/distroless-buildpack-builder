@@ -1,0 +1,45 @@
+name: OSSF Scorecard
+
+on:
+  push:
+    branches:
+      - main
+  # Weekly scheduled scan.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# The Scorecard action requires ONLY read permissions at the workflow level.
+# Any write permission in any job of the same workflow causes the API to reject
+# the results. Keep this workflow dedicated to the scorecard job only.
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    name: OSSF Scorecard
+    runs-on: ubuntu-latest
+    # Only run on default branch to avoid token permission issues on forks.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@v2.4.3
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: scorecard-results.sarif
+          category: scorecard

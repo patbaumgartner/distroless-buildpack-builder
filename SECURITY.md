@@ -54,17 +54,17 @@ All findings are published as SARIF reports to the
 
 ### Run image (distroless)
 
-The run image is based on `gcr.io/distroless/base-nossl:nonroot`:
+The run image is based on `gcr.io/distroless/cc:nonroot`:
 
 - No shell binary (`/bin/sh`, `/bin/bash`, etc.)
 - No package manager (`apt`, `apk`, etc.)
 - No world-writable directories
 - Runs as a non-root user (uid 1002, gid 1000)
-- No SSL libraries (use `distroless/base` if your app needs SSL at runtime)
+- C++ runtime (`libstdc++`, `libgcc`) – required by Node.js and other C++ runtimes
 
 ### Build image
 
-The build image is based on `ubuntu:22.04`. It is only used during the build
+The build image is based on `ubuntu:24.04`. It is only used during the build
 phase and is **never present** in the final application image.
 
 ### Supply chain

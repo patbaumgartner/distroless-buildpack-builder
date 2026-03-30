@@ -26,21 +26,33 @@ jobs:
   # Benchmark build times for each sample application
   # -------------------------------------------------------------------------
   benchmark:
-    name: Build-time benchmark
+    name: Build-time benchmark (${{ matrix.sample }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        sample: [nodejs, go]
+        include:
+          - sample: nodejs
+          - sample: go
+          - sample: java
+            java_version: "21"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@v5.7.4
+        uses: buildpacks/github-actions/setup-pack@v5.11.0
+
+      - name: Set up Java (Spring Boot sample only)
+        if: matrix.java_version != ''
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java_version }}
+          cache: maven
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -95,13 +107,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@v5.7.4
+        uses: buildpacks/github-actions/setup-pack@v5.11.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -163,3 +175,4 @@ jobs:
           echo "|---------|-----------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| distroless-buildpack-builder | $(format_bytes "${DISTROLESS}") |" >> "$GITHUB_STEP_SUMMARY"
           echo "| paketobuildpacks/builder-jammy-base | $(format_bytes "${BASELINE}") |" >> "$GITHUB_STEP_SUMMARY"
+

@@ -13,15 +13,18 @@ on:
 permissions:
   contents: read
   packages: write
+  attestations: write
+  id-token: write
 
 env:
   REGISTRY: ghcr.io
   REGISTRY_OWNER: patbaumgartner
   IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+  DOCKERHUB_IMAGE_BASE: patbaumgartner/distroless-buildpack-builder
 
 jobs:
   # -------------------------------------------------------------------------
-  # Build the Ubuntu Jammy build-phase stack image
+  # Build the Ubuntu Noble build-phase stack image
   # -------------------------------------------------------------------------
   build-stack-build:
     name: Build stack – build image
@@ -30,24 +33,33 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_BASE }}/build
+          images: |
+            ${{ env.IMAGE_BASE }}/build
+            ${{ env.DOCKERHUB_IMAGE_BASE }}-build
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -56,7 +68,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push build stack image
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/build
           platforms: linux/amd64,linux/arm64
@@ -65,6 +78,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
+
+      - name: Attest build stack image (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/build
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   # -------------------------------------------------------------------------
   # Build the Distroless run-phase stack image
@@ -76,24 +99,33 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_BASE }}/run
+          images: |
+            ${{ env.IMAGE_BASE }}/run
+            ${{ env.DOCKERHUB_IMAGE_BASE }}-run
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -102,7 +134,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push run stack image
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: ./stack/run
           platforms: linux/amd64,linux/arm64
@@ -111,9 +144,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
+
+      - name: Attest run stack image (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/run
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   # -------------------------------------------------------------------------
-  # Assemble the CNB builder image using pack
+  # Assemble the CNB builder image using pack and push to GHCR + Docker Hub
   # -------------------------------------------------------------------------
   build-builder:
     name: Build builder image
@@ -124,17 +167,23 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@v5.7.4
+        uses: buildpacks/github-actions/setup-pack@v5.11.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Determine builder tag
         id: tag
@@ -145,8 +194,14 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create and publish builder
+      - name: Create and publish builder to GHCR
         run: |
           pack builder create "${{ env.IMAGE_BASE }}:${{ steps.tag.outputs.tag }}" \
             --config ./builder.toml \
             --publish
+
+      - name: Push builder to Docker Hub
+        run: |
+          docker pull "${{ env.IMAGE_BASE }}:${{ steps.tag.outputs.tag }}"
+          docker tag "${{ env.IMAGE_BASE }}:${{ steps.tag.outputs.tag }}" "${{ env.DOCKERHUB_IMAGE_BASE }}:${{ steps.tag.outputs.tag }}"
+          docker push "${{ env.DOCKERHUB_IMAGE_BASE }}:${{ steps.tag.outputs.tag }}"
