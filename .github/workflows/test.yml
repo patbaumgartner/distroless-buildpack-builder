@@ -299,6 +299,8 @@ jobs:
       - name: Run Java Native Image container and verify response
         run: |
           docker run -d --name java-native-test -p 8084:8080 distroless-test/java-native-image:ci
+          sleep 5
+          docker logs java-native-test 2>&1 || true
           for i in $(seq 1 30); do
             RESP=$(curl -sf http://localhost:8084/ 2>/dev/null || echo "")
             if echo "${RESP}" | grep -qi "hello"; then
