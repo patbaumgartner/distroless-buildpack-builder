@@ -23,6 +23,8 @@ ARG CNB_GROUP_ID=1000
 #
 # Install runtime libraries needed by language buildpacks (e.g. libyaml for
 # Ruby's psych extension) so they can be injected into the distroless image.
+# Libraries are staged under /staging so only the specific files we need are
+# copied into the final distroless layer (keeps the image minimal).
 RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu; fi \
     && groupadd --gid "${CNB_GROUP_ID}" cnb \
@@ -42,7 +44,16 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        netbase \
        openssl \
        tzdata \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && LIBDIR="$(dpkg-architecture -qDEB_HOST_MULTIARCH)" \
+    && mkdir -p "/staging/usr/lib/${LIBDIR}" \
+    && cd "/usr/lib/${LIBDIR}" \
+    && cp -a libcrypt*  "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libexpat*  "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libffi*    "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libgmp*    "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libreadline* "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libyaml*   "/staging/usr/lib/${LIBDIR}/"
 
 # ---------------------------------------------------------------------------
 
@@ -57,13 +68,9 @@ COPY --from=ubuntu-setup /etc/passwd /etc/passwd
 COPY --from=ubuntu-setup /etc/group  /etc/group
 
 # Inject runtime libraries required by language buildpacks that are not
-# present in the distroless base image.
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libcrypt* /usr/lib/x86_64-linux-gnu/
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libexpat* /usr/lib/x86_64-linux-gnu/
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libffi* /usr/lib/x86_64-linux-gnu/
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libgmp* /usr/lib/x86_64-linux-gnu/
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libreadline* /usr/lib/x86_64-linux-gnu/
-COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libyaml* /usr/lib/x86_64-linux-gnu/
+# present in the distroless base image.  The staging directory preserves the
+# correct arch-specific path (x86_64-linux-gnu or aarch64-linux-gnu).
+COPY --from=ubuntu-setup /staging/usr/lib/ /usr/lib/
 
 # Inject timezone data and network configuration for apps that need them.
 COPY --from=ubuntu-setup /usr/share/zoneinfo /usr/share/zoneinfo
