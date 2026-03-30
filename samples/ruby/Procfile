@@ -1,1 +1,1 @@
-web: bundle exec ruby app.rb
+web: ruby -rbundler/setup app.rb
