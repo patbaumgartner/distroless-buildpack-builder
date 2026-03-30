@@ -203,8 +203,8 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 |--------|----------|--------------|
 | `samples/nodejs` | Node.js (Express 5) | `pack build my-app --path ./samples/nodejs --builder patbaumgartner/distroless-buildpack-builder:latest` |
 | `samples/go` | Go | `pack build my-app --path ./samples/go --builder patbaumgartner/distroless-buildpack-builder:latest` |
-| `samples/python` | Python (Flask + Gunicorn) | `pack build my-app --path ./samples/python --builder patbaumgartner/distroless-buildpack-builder:latest` |
-| `samples/ruby` | Ruby (Sinatra + Puma) | `pack build my-app --path ./samples/ruby --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/python` | Python (Flask) | `pack build my-app --path ./samples/python --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/ruby` | Ruby (Sinatra) | `pack build my-app --path ./samples/ruby --builder patbaumgartner/distroless-buildpack-builder:latest` |
 | `samples/dotnet-core` | .NET 9 (ASP.NET Core) | `pack build my-app --path ./samples/dotnet-core --builder patbaumgartner/distroless-buildpack-builder:latest` |
 | `samples/php` | PHP | `pack build my-app --path ./samples/php --builder patbaumgartner/distroless-buildpack-builder:latest` |
 | `samples/web-servers` | Static (Nginx) | `pack build my-app --path ./samples/web-servers --builder patbaumgartner/distroless-buildpack-builder:latest` |
@@ -230,8 +230,8 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 │   ├── java-native-image/    # GraalVM Native Image sample (Spring Boot AOT)
 │   ├── nodejs/               # Express.js sample application
 │   ├── php/                  # PHP sample application
-│   ├── python/               # Flask + Gunicorn sample application
-│   ├── ruby/                 # Sinatra + Puma sample application
+│   ├── python/               # Flask sample application
+│   ├── ruby/                 # Sinatra sample application
 │   └── web-servers/          # Static files served by Nginx
 ├── tests/
 │   ├── integration/          # End-to-end builder tests

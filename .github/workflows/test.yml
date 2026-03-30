@@ -179,7 +179,8 @@ jobs:
       - name: Run Python container and verify response
         run: |
           docker run -d --name python-test -p 8085:8080 distroless-test/python:ci
-          sleep 5
+          sleep 10
+          docker logs python-test 2>&1 || true
           RESP=$(curl -sf http://localhost:8085/ || echo "FAILED")
           echo "Response: ${RESP}"
           echo "${RESP}" | grep -qi "hello"
@@ -197,7 +198,8 @@ jobs:
       - name: Run Ruby container and verify response
         run: |
           docker run -d --name ruby-test -p 8086:8080 distroless-test/ruby:ci
-          sleep 5
+          sleep 10
+          docker logs ruby-test 2>&1 || true
           RESP=$(curl -sf http://localhost:8086/ || echo "FAILED")
           echo "Response: ${RESP}"
           echo "${RESP}" | grep -qi "hello"
@@ -216,6 +218,7 @@ jobs:
         run: |
           docker run -d --name dotnet-test -p 8087:8080 distroless-test/dotnet-core:ci
           sleep 10
+          docker logs dotnet-test 2>&1 || true
           RESP=$(curl -sf http://localhost:8087/ || echo "FAILED")
           echo "Response: ${RESP}"
           echo "${RESP}" | grep -qi "hello"
@@ -233,7 +236,8 @@ jobs:
       - name: Run PHP container and verify response
         run: |
           docker run -d --name php-test -p 8088:8080 distroless-test/php:ci
-          sleep 5
+          sleep 10
+          docker logs php-test 2>&1 || true
           RESP=$(curl -sf http://localhost:8088/ || echo "FAILED")
           echo "Response: ${RESP}"
           echo "${RESP}" | grep -qi "hello"
@@ -251,7 +255,8 @@ jobs:
       - name: Run Web Servers container and verify response
         run: |
           docker run -d --name web-test -p 8089:8080 distroless-test/web-servers:ci
-          sleep 5
+          sleep 10
+          docker logs web-test 2>&1 || true
           RESP=$(curl -sf http://localhost:8089/ || echo "FAILED")
           echo "Response: ${RESP}"
           echo "${RESP}" | grep -qi "hello"

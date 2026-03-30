@@ -31,8 +31,8 @@ All samples are in `samples/` and expose `/` and `/health` on port `8080`:
 |-----------|----------|-------|
 | `samples/nodejs` | Node.js (Express 5) | |
 | `samples/go` | Go | |
-| `samples/python` | Python (Flask + Gunicorn) | |
-| `samples/ruby` | Ruby (Sinatra + Puma) | |
+| `samples/python` | Python (Flask) | |
+| `samples/ruby` | Ruby (Sinatra) | |
 | `samples/dotnet-core` | .NET 9 (ASP.NET Core) | |
 | `samples/php` | PHP | |
 | `samples/web-servers` | Static (Nginx) | |
