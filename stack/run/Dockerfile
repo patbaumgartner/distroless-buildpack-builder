@@ -34,6 +34,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
        libexpat1 \
+       libgmp10 \
        libyaml-0-2 \
        netbase \
        openssl \
@@ -55,6 +56,7 @@ COPY --from=ubuntu-setup /etc/group  /etc/group
 # Inject runtime libraries required by language buildpacks that are not
 # present in the distroless base image.
 COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libexpat* /usr/lib/x86_64-linux-gnu/
+COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libgmp* /usr/lib/x86_64-linux-gnu/
 COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libyaml* /usr/lib/x86_64-linux-gnu/
 
 # Inject timezone data and network configuration for apps that need them.
