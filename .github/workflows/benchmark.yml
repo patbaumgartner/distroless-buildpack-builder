@@ -34,8 +34,15 @@ jobs:
         include:
           - sample: nodejs
           - sample: go
+          - sample: python
+          - sample: ruby
+          - sample: dotnet-core
+          - sample: php
+          - sample: web-servers
           - sample: java
-            java_version: "21"
+            java_version: "25"
+          - sample: java-native-image
+            java_version: "25"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

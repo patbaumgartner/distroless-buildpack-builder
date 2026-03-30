@@ -32,8 +32,7 @@ builder.
 
 | Language | Buildpack |
 |----------|-----------|
-| Java / Spring Boot | `paketo-buildpacks/java` |
-| Go | `paketo-buildpacks/go` |
+| Java / Spring Boot | `paketo-buildpacks/java` || Java Native Image (GraalVM) | `paketo-buildpacks/java-native-image` || Go | `paketo-buildpacks/go` |
 | Node.js | `paketo-buildpacks/nodejs` |
 | Python | `paketo-buildpacks/python` |
 | Ruby | `paketo-buildpacks/ruby` |
@@ -67,6 +66,11 @@ pack build my-go-app \
 pack build my-java-app \
   --builder patbaumgartner/distroless-buildpack-builder:latest \
   --path ./my-java-app
+
+# Java GraalVM Native Image application
+pack build my-native-app \
+  --builder patbaumgartner/distroless-buildpack-builder:latest \
+  --path ./my-native-app
 ```
 
 ### Build a Spring Boot application with `mvn spring-boot:build-image`
@@ -199,8 +203,14 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 |--------|----------|--------------|
 | `samples/nodejs` | Node.js (Express 5) | `pack build my-app --path ./samples/nodejs --builder patbaumgartner/distroless-buildpack-builder:latest` |
 | `samples/go` | Go | `pack build my-app --path ./samples/go --builder patbaumgartner/distroless-buildpack-builder:latest` |
-| `samples/java` | Java 21 / Spring Boot (pack) | `pack build my-app --path ./samples/java --builder patbaumgartner/distroless-buildpack-builder:latest` |
-| `samples/java` | Java 21 / Spring Boot (Maven) | `cd samples/java && mvn spring-boot:build-image` |
+| `samples/python` | Python (Flask + Gunicorn) | `pack build my-app --path ./samples/python --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/ruby` | Ruby (Sinatra + Puma) | `pack build my-app --path ./samples/ruby --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/dotnet-core` | .NET 9 (ASP.NET Core) | `pack build my-app --path ./samples/dotnet-core --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/php` | PHP | `pack build my-app --path ./samples/php --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/web-servers` | Static (Nginx) | `pack build my-app --path ./samples/web-servers --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/java` | Java 25 / Spring Boot (pack) | `pack build my-app --path ./samples/java --builder patbaumgartner/distroless-buildpack-builder:latest` |
+| `samples/java` | Java 25 / Spring Boot (Maven) | `cd samples/java && mvn spring-boot:build-image` |
+| `samples/java-native-image` | Java 25 / GraalVM Native Image | `pack build my-app --path ./samples/java-native-image --builder patbaumgartner/distroless-buildpack-builder:latest` |
 
 ---
 
@@ -214,20 +224,26 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 │   ├── build/Dockerfile      # Build stack image (Ubuntu 24.04 Noble)
 │   └── run/Dockerfile        # Run stack image (Google Distroless)
 ├── samples/
+│   ├── dotnet-core/          # ASP.NET Core sample application
+│   ├── go/                   # Go HTTP sample application
 │   ├── java/                 # Spring Boot sample (pack + mvn spring-boot:build-image)
+│   ├── java-native-image/    # GraalVM Native Image sample (Spring Boot AOT)
 │   ├── nodejs/               # Express.js sample application
-│   └── go/                   # Go HTTP sample application
+│   ├── php/                  # PHP sample application
+│   ├── python/               # Flask + Gunicorn sample application
+│   ├── ruby/                 # Sinatra + Puma sample application
+│   └── web-servers/          # Static files served by Nginx
 ├── tests/
 │   ├── integration/          # End-to-end builder tests
 │   └── smoke/                # Fast label + config validation tests
 └── .github/
-    ├── dependabot.yml        # Automated dependency updates (GitHub Actions, Docker, npm, Go, Maven)
+    ├── dependabot.yml        # Automated dependency updates (GitHub Actions, Docker, npm, Go, Maven, pip, Bundler, NuGet, Composer)
     └── workflows/
         ├── build-and-push.yml  # Build + push stack images + builder (GHCR + Docker Hub)
         ├── test.yml            # Smoke + integration tests (incl. mvn spring-boot:build-image)
         ├── security-scan.yml   # Trivy CVE scan + Hadolint Dockerfile lint
         ├── scorecard.yml       # OSSF Scorecard supply-chain security (weekly)
-        ├── benchmark.yml       # Build-time + image-size benchmarks (nodejs, go, java)
+        ├── benchmark.yml       # Build-time + image-size benchmarks for all samples
         └── release.yml         # Create GitHub releases on version tags
 ```
 
@@ -241,7 +257,7 @@ language.  All samples expose a `/` and `/health` endpoint on port `8080`.
 | **Integration Tests** | push, pull_request | Smoke tests → integration tests (pack + mvn spring-boot:build-image) |
 | **Security Scan** | push, pull_request, weekly | Trivy CVE scan of container images + filesystem; Hadolint Dockerfile lint |
 | **OSSF Scorecard** | push to `main`, weekly | Supply-chain security posture analysis |
-| **Benchmark** | push to `main`, weekly | Measure build times + image sizes vs. Paketo baseline (nodejs, go, java) |
+| **Benchmark** | push to `main`, weekly | Measure build times + image sizes vs. Paketo baseline (all samples) |
 | **Release** | version tags (`v*`) | Create a GitHub Release with notes and pull instructions |
 
 ---

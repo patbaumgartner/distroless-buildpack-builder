@@ -81,7 +81,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "25"
           cache: maven
 
       - name: Log in to GHCR (read-only, for pulling Paketo buildpacks)
@@ -167,6 +167,96 @@ jobs:
           echo "${RESP}" | grep -qi "hello"
           docker rm -f go-test
 
+      # ----- Python ----------------------------------------------------------
+      - name: Build Python sample with pack
+        run: |
+          pack build distroless-test/python:ci \
+            --path ./samples/python \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Python container and verify response
+        run: |
+          docker run -d --name python-test -p 8085:8080 distroless-test/python:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8085/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f python-test
+
+      # ----- Ruby ------------------------------------------------------------
+      - name: Build Ruby sample with pack
+        run: |
+          pack build distroless-test/ruby:ci \
+            --path ./samples/ruby \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Ruby container and verify response
+        run: |
+          docker run -d --name ruby-test -p 8086:8080 distroless-test/ruby:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8086/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f ruby-test
+
+      # ----- .NET Core -------------------------------------------------------
+      - name: Build .NET Core sample with pack
+        run: |
+          pack build distroless-test/dotnet-core:ci \
+            --path ./samples/dotnet-core \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run .NET Core container and verify response
+        run: |
+          docker run -d --name dotnet-test -p 8087:8080 distroless-test/dotnet-core:ci
+          sleep 10
+          RESP=$(curl -sf http://localhost:8087/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f dotnet-test
+
+      # ----- PHP -------------------------------------------------------------
+      - name: Build PHP sample with pack
+        run: |
+          pack build distroless-test/php:ci \
+            --path ./samples/php \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run PHP container and verify response
+        run: |
+          docker run -d --name php-test -p 8088:8080 distroless-test/php:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8088/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f php-test
+
+      # ----- Web Servers (Nginx static) --------------------------------------
+      - name: Build Web Servers sample with pack
+        run: |
+          pack build distroless-test/web-servers:ci \
+            --path ./samples/web-servers \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Web Servers container and verify response
+        run: |
+          docker run -d --name web-test -p 8089:8080 distroless-test/web-servers:ci
+          sleep 5
+          RESP=$(curl -sf http://localhost:8089/ || echo "FAILED")
+          echo "Response: ${RESP}"
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f web-test
+
       # ----- Java (pack build) -----------------------------------------------
       - name: Build Java sample with pack
         run: |
@@ -190,6 +280,31 @@ jobs:
           done
           echo "${RESP}" | grep -qi "hello"
           docker rm -f java-test
+
+      # ----- Java (mvn spring-boot:build-image) ----------------------------
+      # ----- Java Native Image (pack build) ---------------------------------
+      - name: Build Java Native Image sample with pack
+        run: |
+          pack build distroless-test/java-native-image:ci \
+            --path ./samples/java-native-image \
+            --builder "${{ env.BUILDER_LOCAL_TAG }}" \
+            --trust-builder \
+            --pull-policy if-not-present
+
+      - name: Run Java Native Image container and verify response
+        run: |
+          docker run -d --name java-native-test -p 8084:8080 distroless-test/java-native-image:ci
+          for i in $(seq 1 30); do
+            RESP=$(curl -sf http://localhost:8084/ 2>/dev/null || echo "")
+            if echo "${RESP}" | grep -qi "hello"; then
+              echo "Java Native Image app responded: ${RESP}"
+              break
+            fi
+            echo "Waiting... (${i}/30)"
+            sleep 3
+          done
+          echo "${RESP}" | grep -qi "hello"
+          docker rm -f java-native-test
 
       # ----- Java (mvn spring-boot:build-image) ----------------------------
       - name: Build Spring Boot sample via mvn spring-boot:build-image

@@ -168,3 +168,87 @@ updates:
           - "*"
         exclude-patterns:
           - "org.springframework.boot:*"
+
+  # ---------------------------------------------------------------------------
+  # pip – keep the sample Python application dependencies current.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/samples/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "python"
+    open-pull-requests-limit: 5
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Bundler – keep the sample Ruby application dependencies current.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "bundler"
+    directory: "/samples/ruby"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "ruby"
+    open-pull-requests-limit: 5
+    groups:
+      ruby-dependencies:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # NuGet – keep the sample .NET Core application dependencies current.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "nuget"
+    directory: "/samples/dotnet-core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "dotnet"
+    open-pull-requests-limit: 5
+    groups:
+      dotnet-dependencies:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Composer – keep the sample PHP application dependencies current.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "composer"
+    directory: "/samples/php"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "php"
+    open-pull-requests-limit: 5
+    groups:
+      php-dependencies:
+        patterns:
+          - "*"

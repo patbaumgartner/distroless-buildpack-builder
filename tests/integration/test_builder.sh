@@ -108,14 +108,16 @@ info "Builder: ${BUILDER}"
 info "Running integration tests against sample applications..."
 echo
 
-for lang in nodejs go; do
+for lang in nodejs go python ruby dotnet-core php web-servers; do
   test_sample "${lang}"
   echo
 done
 
-# Java build takes longer; only run when INCLUDE_JAVA=1
+# Java builds take longer; only run when INCLUDE_JAVA=1
 if [[ "${INCLUDE_JAVA:-0}" == "1" ]]; then
   test_sample "java"
+  echo
+  test_sample "java-native-image"
   echo
 fi
 
