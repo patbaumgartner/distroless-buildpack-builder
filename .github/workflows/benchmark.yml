@@ -1,0 +1,165 @@
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - main
+  # Weekly benchmark to track build-time trends.
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Number of build iterations per sample"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Benchmark build times for each sample application
+  # -------------------------------------------------------------------------
+  benchmark:
+    name: Build-time benchmark
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [nodejs, go]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.7.4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run build benchmark (${{ matrix.sample }})
+        id: bench
+        run: |
+          ITERATIONS="${{ github.event.inputs.iterations || '3' }}"
+          SAMPLE="${{ matrix.sample }}"
+          BUILDER="${{ env.IMAGE_BASE }}:latest"
+          IMAGE="benchmark/${{ matrix.sample }}:bench"
+          TOTAL=0
+
+          echo "### Benchmark: ${SAMPLE} (${ITERATIONS} iterations)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Iteration | Duration (s) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------|-------------|" >> "$GITHUB_STEP_SUMMARY"
+
+          for i in $(seq 1 "${ITERATIONS}"); do
+            START=$(date +%s%N)
+            pack build "${IMAGE}" \
+              --path "./samples/${SAMPLE}" \
+              --builder "${BUILDER}" \
+              --trust-builder \
+              --pull-policy if-not-present \
+              --clear-cache >/dev/null 2>&1
+            END=$(date +%s%N)
+            ELAPSED=$(( (END - START) / 1000000000 ))
+            TOTAL=$((TOTAL + ELAPSED))
+            echo "| ${i} | ${ELAPSED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "  Iteration ${i}: ${ELAPSED}s"
+          done
+
+          AVG=$((TOTAL / ITERATIONS))
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Average build time: ${AVG}s** (total: ${TOTAL}s over ${ITERATIONS} runs)" >> "$GITHUB_STEP_SUMMARY"
+          echo "avg=${AVG}" >> "$GITHUB_OUTPUT"
+          echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+      - name: Print summary
+        run: |
+          echo "Sample:     ${{ matrix.sample }}"
+          echo "Avg time:   ${{ steps.bench.outputs.avg }}s"
+          echo "Total time: ${{ steps.bench.outputs.total }}s"
+
+  # -------------------------------------------------------------------------
+  # Compare distroless builder vs. reference Paketo full-jammy builder
+  # -------------------------------------------------------------------------
+  compare-baseline:
+    name: Compare vs. Paketo Jammy baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.7.4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Go sample – distroless builder
+        id: distroless
+        run: |
+          START=$(date +%s%N)
+          pack build benchmark/go-distroless:ci \
+            --path ./samples/go \
+            --builder "${{ env.IMAGE_BASE }}:latest" \
+            --trust-builder \
+            --pull-policy if-not-present \
+            --clear-cache >/dev/null 2>&1
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000000 ))
+          echo "elapsed=${ELAPSED}" >> "$GITHUB_OUTPUT"
+          echo "Distroless builder: ${ELAPSED}s"
+
+      - name: Build Go sample – Paketo Jammy baseline
+        id: baseline
+        run: |
+          START=$(date +%s%N)
+          pack build benchmark/go-baseline:ci \
+            --path ./samples/go \
+            --builder paketobuildpacks/builder-jammy-base:latest \
+            --trust-builder \
+            --pull-policy if-not-present \
+            --clear-cache >/dev/null 2>&1
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000000 ))
+          echo "elapsed=${ELAPSED}" >> "$GITHUB_OUTPUT"
+          echo "Paketo Jammy baseline: ${ELAPSED}s"
+
+      - name: Write comparison summary
+        run: |
+          echo "## Build-time comparison – Go sample" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Builder | Duration (s) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|-------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| distroless-buildpack-builder | ${{ steps.distroless.outputs.elapsed }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| paketobuildpacks/builder-jammy-base | ${{ steps.baseline.outputs.elapsed }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check run image size – distroless vs. Ubuntu
+        run: |
+          DISTROLESS=$(docker image inspect benchmark/go-distroless:ci --format '{{.Size}}' 2>/dev/null || echo "N/A")
+          BASELINE=$(docker image inspect benchmark/go-baseline:ci   --format '{{.Size}}' 2>/dev/null || echo "N/A")
+
+          format_bytes() {
+            local b=$1
+            echo "$(( b / 1024 / 1024 )) MB"
+          }
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Image size comparison – Go sample" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Builder | Image size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|-----------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| distroless-buildpack-builder | $(format_bytes "${DISTROLESS}") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| paketobuildpacks/builder-jammy-base | $(format_bytes "${BASELINE}") |" >> "$GITHUB_STEP_SUMMARY"

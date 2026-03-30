@@ -1,0 +1,90 @@
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # GitHub Actions – keep workflow action versions up to date
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    open-pull-requests-limit: 10
+
+  # ---------------------------------------------------------------------------
+  # Docker – base image updates for stack/build and stack/run
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "docker"
+    directory: "/stack/build"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/stack/run"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # ---------------------------------------------------------------------------
+  # npm – keep sample Node.js app dependencies current
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/samples/nodejs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "npm"
+
+  # ---------------------------------------------------------------------------
+  # Go modules – keep sample Go app dependencies current
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "gomod"
+    directory: "/samples/go"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # ---------------------------------------------------------------------------
+  # Maven – keep sample Java app dependencies current
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "maven"
+    directory: "/samples/java"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "java"
