@@ -45,12 +45,17 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        cnb \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       libargon2-1 \
        libcrypt1 \
+       libcurl4t64 \
        libexpat1 \
        libffi8ubuntu1 \
        libgmp10 \
+       libonig5 \
        libreadline8t64 \
+       libsodium23 \
        libsqlite3-0 \
+       libxml2 \
        libyaml-0-2 \
        netbase \
        openssl \
@@ -60,13 +65,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && LIBDIR="${ARCH}-linux-gnu" \
     && mkdir -p "/staging/usr/lib/${LIBDIR}" "/staging/lib/${LIBDIR}" \
     && cd "/usr/lib/${LIBDIR}" \
-    && cp -a libcrypt*  "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libexpat*  "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libffi*    "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libgmp*    "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libreadline* "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libsqlite* "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libyaml*   "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a *.so* "/staging/usr/lib/${LIBDIR}/" \
     && cp -a "/lib/${LIBDIR}"/libssl*    "/staging/lib/${LIBDIR}/" \
     && cp -a "/lib/${LIBDIR}"/libcrypto* "/staging/lib/${LIBDIR}/"
 
