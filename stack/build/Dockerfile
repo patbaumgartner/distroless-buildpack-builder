@@ -32,6 +32,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
        libgmp-dev \
        libicu-dev \
        libreadline-dev \
+       libsqlite3-dev \
        libssl-dev \
        libxml2-dev \
        libxslt-dev \

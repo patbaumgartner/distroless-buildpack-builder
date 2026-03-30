@@ -40,6 +40,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        libffi8ubuntu1 \
        libgmp10 \
        libreadline8t64 \
+       libsqlite3-0 \
        libyaml-0-2 \
        netbase \
        openssl \
@@ -54,6 +55,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && cp -a libffi*    "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libgmp*    "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libreadline* "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a libsqlite* "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libyaml*   "/staging/usr/lib/${LIBDIR}/" \
     && cp -a "/lib/${LIBDIR}"/libssl*    "/staging/lib/${LIBDIR}/" \
     && cp -a "/lib/${LIBDIR}"/libcrypto* "/staging/lib/${LIBDIR}/"
