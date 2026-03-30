@@ -9,6 +9,9 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # Nightly rebuild of run containers to pick up base image security patches
+    - cron: "0 3 * * *"
 
 permissions:
   contents: read
@@ -18,16 +21,17 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  REGISTRY_OWNER: patbaumgartner
   IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
   DOCKERHUB_IMAGE_BASE: patbaumgartner/distroless-buildpack-builder
 
 jobs:
   # -------------------------------------------------------------------------
   # Build the Ubuntu Noble build-phase stack image
+  # Skipped on nightly schedule – build images don't need daily updates.
   # -------------------------------------------------------------------------
   build-stack-build:
     name: Build stack – build image
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.meta.outputs.tags }}
@@ -91,6 +95,8 @@ jobs:
 
   # -------------------------------------------------------------------------
   # Build the Distroless run-phase stack image
+  # Runs on every trigger including the nightly schedule to ensure the
+  # run image always contains the latest distroless base image patches.
   # -------------------------------------------------------------------------
   build-stack-run:
     name: Build stack – run image
@@ -164,7 +170,11 @@ jobs:
     needs:
       - build-stack-build
       - build-stack-run
-    if: github.event_name != 'pull_request'
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      (needs.build-stack-run.result == 'success') &&
+      (needs.build-stack-build.result == 'success' || needs.build-stack-build.result == 'skipped')
     steps:
       - name: Checkout
         uses: actions/checkout@v6

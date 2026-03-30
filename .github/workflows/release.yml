@@ -9,6 +9,9 @@ permissions:
   contents: write
   packages: write
 
+env:
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+
 jobs:
   release:
     name: Create GitHub Release
@@ -45,18 +48,18 @@ jobs:
 
             ### Builder
             ```
-            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder:${{ github.ref_name }}
+            docker pull ${{ env.IMAGE_BASE }}:${{ github.ref_name }}
             ```
 
             ### Stack Images
             ```
-            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/build:${{ github.ref_name }}
-            docker pull ghcr.io/patbaumgartner/distroless-buildpack-builder/run:${{ github.ref_name }}
+            docker pull ${{ env.IMAGE_BASE }}/build:${{ github.ref_name }}
+            docker pull ${{ env.IMAGE_BASE }}/run:${{ github.ref_name }}
             ```
 
             ## Usage
 
             ```bash
             pack build my-app \
-              --builder ghcr.io/patbaumgartner/distroless-buildpack-builder:${{ github.ref_name }}
+              --builder ${{ env.IMAGE_BASE }}:${{ github.ref_name }}
             ```
