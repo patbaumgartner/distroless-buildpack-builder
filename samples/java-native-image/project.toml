@@ -1,0 +1,18 @@
+[_]
+schema-version = "0.2"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_DIRECT_PROCESS"
+  value = "true"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_NATIVE_IMAGE"
+  value = "true"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_JVM_VERSION"
+  value = "21"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_MAVEN_BUILD_ARGUMENTS"
+  value = "-Pnative -DskipTests package"

@@ -1,7 +1,22 @@
 # ---------------------------------------------------------------------------
 # Build stack image – used during the *build* phase of the CNB lifecycle.
 # Based on Ubuntu 24.04 Noble to provide a full toolchain for compiling apps.
+#
+# ICU compatibility: Paketo buildpack binaries (e.g. PHP) are compiled against
+# Ubuntu 22.04 Jammy's ICU 70.  We pull ICU 70 .so files from a Jammy stage
+# so these binaries can find the libraries they need at build time.
 # ---------------------------------------------------------------------------
+
+# Stage 1: Extract ICU 70 libraries from Ubuntu 22.04 (Jammy)
+FROM ubuntu:22.04 AS icu-compat
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ARCH="$(uname -m)" \
+    && mkdir -p /staging \
+    && cp -a /usr/lib/${ARCH}-linux-gnu/libicu*.so.70* /staging/
+
+# Stage 2: Main build image
 FROM ubuntu:24.04
 
 ARG CNB_USER_ID=1000
@@ -16,26 +31,50 @@ LABEL org.opencontainers.image.source="https://github.com/patbaumgartner/distrol
 LABEL org.opencontainers.image.description="Build stack image for the Distroless Buildpack Builder (Ubuntu 24.04 Noble)"
 
 # Install build-time dependencies required by common Paketo buildpacks.
+# The package list mirrors the official Paketo build stack (paketobuildpacks/
+# build-jammy-base) to ensure compatibility with all supported buildpacks.
 # DEBIAN_FRONTEND=noninteractive prevents interactive prompts during apt-get.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       build-essential \
        ca-certificates \
        curl \
-       wget \
+       fontconfig \
        git \
        jq \
-       build-essential \
-       libssl-dev \
-       zlib1g-dev \
+       libexpat1 \
        libffi-dev \
+       libgmp-dev \
+       libicu-dev \
+       libreadline-dev \
+       libsqlite3-dev \
+       libssl-dev \
+       libxml2-dev \
+       libxslt-dev \
+       libyaml-dev \
+       netbase \
+       openssl \
+       pkg-config \
+       tzdata \
        unzip \
+       wget \
+       xz-utils \
        zip \
+       zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Inject ICU 70 compatibility libraries from Ubuntu 22.04.
+# These are needed by Paketo buildpack binaries (e.g. PHP) that were compiled
+# against Jammy.  The .so.70 files coexist with Noble's .so.74 files.
+# The staging directory contains only the ICU libs, placed via a flat copy.
+# ldconfig creates the necessary symlinks and cache entries.
+COPY --from=icu-compat /staging/ /usr/lib/
+RUN ldconfig
 
 # Create the CNB user/group.
 # Only remove the default 'ubuntu' user/group if they exist at UID/GID 1000
 # so we can safely claim those IDs for the CNB user. The conditional check
-# avoids failures when the ubuntu:24.04 base image ships without this user.
+# avoids failures when the base image ships without this user.
 RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu; fi \
     && groupadd --gid "${CNB_GROUP_ID}" cnb \
