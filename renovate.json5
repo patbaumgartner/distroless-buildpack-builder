@@ -3,7 +3,7 @@
   "extends": [
     "config:recommended"
   ],
-  "description": "Automates builder.toml version updates (CNB lifecycle + pinned Paketo buildpacks) that Dependabot cannot track. All other ecosystems (GitHub Actions, Docker, npm, Go, Maven) are handled by .github/dependabot.yml.",
+  "description": "Automates builder.toml version updates (CNB lifecycle + all pinned Paketo buildpacks) that Dependabot cannot track. All other ecosystems (GitHub Actions, Docker, npm, Go, Maven) are handled by .github/dependabot.yml.",
   "enabledManagers": ["custom.regex"],
   "labels": ["dependencies", "renovate"],
   "packageRules": [
@@ -30,7 +30,7 @@
     },
     {
       "customType": "regex",
-      "description": "Pinned Paketo buildpack URI versions in [[buildpacks]] sections (e.g. docker://docker.io/paketobuildpacks/procfile:5.13.1). Buildpacks without an explicit tag (always-latest) are intentionally excluded by requiring the colon separator.",
+      "description": "Pinned Paketo buildpack URI versions in [[buildpacks]] sections (e.g. docker://docker.io/paketobuildpacks/java:21.4.0). Every buildpack is pinned to a specific semver tag so Renovate can track updates.",
       "managerFilePatterns": [
         "/^builder\.toml$/"
       ],
@@ -41,14 +41,14 @@
     },
     {
       "customType": "regex",
-      "description": "Procfile buildpack version in [[order.group]] – must stay in sync with the [[buildpacks]] uri tag above. Renovate groups both into the same PR via the 'builder.toml versions' packageRule.",
+      "description": "Buildpack versions in [[order.group]] sections – must stay in sync with the [[buildpacks]] uri tags above. Uses a generic pattern to match all buildpacks. Renovate groups these into the same PR via the 'builder.toml versions' packageRule.",
       "managerFilePatterns": [
         "/^builder\.toml$/"
       ],
       "matchStrings": [
-        "(?m)id\\s*=\\s*\"paketo-buildpacks/procfile\"\\s*\\n\\s*version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "id\\s*=\\s*\"paketo-buildpacks/(?<depName>[^\"]+)\"\\s*\\n\\s*version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "depNameTemplate": "paketobuildpacks/procfile",
+      "depNameTemplate": "paketobuildpacks/{{{depName}}}",
       "datasourceTemplate": "docker"
     }
   ]

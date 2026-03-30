@@ -7,7 +7,7 @@
 #
 # See: https://buildpacks.io/docs/operator-guide/create-a-builder/
 
-description = "A Cloud Native Buildpack builder using Google Distroless run images and Paketo Buildpacks for secure, minimal production containers."
+description = "A Cloud Native Buildpack builder using Google Distroless run images with buildpacks for .NET, Go, Java, Java Native Image, Node.js, PHP, Procfile, Python, Ruby, and Web Servers."
 
 [stack]
   id            = "io.buildpacks.stacks.jammy"
@@ -24,28 +24,34 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 # ---------------------------------------------------------------------------
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/java"
+  uri = "docker://docker.io/paketobuildpacks/dotnet-core:4.2.3"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/go"
+  uri = "docker://docker.io/paketobuildpacks/go:4.19.7"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/nodejs"
+  uri = "docker://docker.io/paketobuildpacks/java-native-image:14.3.0"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/python"
+  uri = "docker://docker.io/paketobuildpacks/java:21.4.0"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/ruby"
+  uri = "docker://docker.io/paketobuildpacks/nodejs:10.2.3"
 
 [[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/php"
-
-[[buildpacks]]
-  uri = "docker://docker.io/paketobuildpacks/dotnet-core"
+  uri = "docker://docker.io/paketobuildpacks/php:2.19.9"
 
 [[buildpacks]]
   uri = "docker://docker.io/paketobuildpacks/procfile:5.13.1"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/python:2.44.3"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/ruby:1.1.4"
+
+[[buildpacks]]
+  uri = "docker://docker.io/paketobuildpacks/web-servers:4.2.3"
 
 # ---------------------------------------------------------------------------
 # Detection order (first match wins)
@@ -53,31 +59,48 @@ description = "A Cloud Native Buildpack builder using Google Distroless run imag
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/java"
+    id      = "paketo-buildpacks/ruby"
+    version = "1.1.4"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/go"
+    id      = "paketo-buildpacks/dotnet-core"
+    version = "4.2.3"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/nodejs"
+    id      = "paketo-buildpacks/go"
+    version = "4.19.7"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/python"
+    id      = "paketo-buildpacks/python"
+    version = "2.44.3"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/ruby"
+    id      = "paketo-buildpacks/php"
+    version = "2.19.9"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/php"
+    id      = "paketo-buildpacks/web-servers"
+    version = "4.2.3"
 
 [[order]]
   [[order.group]]
-    id = "paketo-buildpacks/dotnet-core"
+    id      = "paketo-buildpacks/java-native-image"
+    version = "14.3.0"
+
+[[order]]
+  [[order.group]]
+    id      = "paketo-buildpacks/java"
+    version = "21.4.0"
+
+[[order]]
+  [[order.group]]
+    id      = "paketo-buildpacks/nodejs"
+    version = "10.2.3"
 
 [[order]]
   [[order.group]]
