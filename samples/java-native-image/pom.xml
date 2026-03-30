@@ -18,7 +18,7 @@
   <description>Sample Java GraalVM Native Image application for distroless buildpack builder integration tests</description>
 
   <properties>
-    <java.version>25</java.version>
+    <java.version>21</java.version>
   </properties>
 
   <dependencies>

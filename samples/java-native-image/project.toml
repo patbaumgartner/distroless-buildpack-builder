@@ -1,0 +1,10 @@
+[_]
+schema-version = "0.2"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_DIRECT_PROCESS"
+  value = "true"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_NATIVE_IMAGE"
+  value = "true"
