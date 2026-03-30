@@ -47,14 +47,16 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && rm -rf /var/lib/apt/lists/* \
     && ARCH="$(uname -m)" \
     && LIBDIR="${ARCH}-linux-gnu" \
-    && mkdir -p "/staging/usr/lib/${LIBDIR}" \
+    && mkdir -p "/staging/usr/lib/${LIBDIR}" "/staging/lib/${LIBDIR}" \
     && cd "/usr/lib/${LIBDIR}" \
     && cp -a libcrypt*  "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libexpat*  "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libffi*    "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libgmp*    "/staging/usr/lib/${LIBDIR}/" \
     && cp -a libreadline* "/staging/usr/lib/${LIBDIR}/" \
-    && cp -a libyaml*   "/staging/usr/lib/${LIBDIR}/"
+    && cp -a libyaml*   "/staging/usr/lib/${LIBDIR}/" \
+    && cp -a "/lib/${LIBDIR}"/libssl*    "/staging/lib/${LIBDIR}/" \
+    && cp -a "/lib/${LIBDIR}"/libcrypto* "/staging/lib/${LIBDIR}/"
 
 # ---------------------------------------------------------------------------
 
@@ -72,6 +74,7 @@ COPY --from=ubuntu-setup /etc/group  /etc/group
 # present in the distroless base image.  The staging directory preserves the
 # correct arch-specific path (x86_64-linux-gnu or aarch64-linux-gnu).
 COPY --from=ubuntu-setup /staging/usr/lib/ /usr/lib/
+COPY --from=ubuntu-setup /staging/lib/ /lib/
 
 # Inject timezone data and network configuration for apps that need them.
 COPY --from=ubuntu-setup /usr/share/zoneinfo /usr/share/zoneinfo
