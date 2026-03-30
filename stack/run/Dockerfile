@@ -20,6 +20,9 @@ ARG CNB_GROUP_ID=1000
 # Ubuntu 24.04 ships with a default 'ubuntu' user (UID/GID 1000); remove it
 # only if it exists so we can claim GID 1000 for the CNB group without conflict.
 # The conditional guards against failures when the base image ships without it.
+#
+# Install runtime libraries needed by language buildpacks (e.g. libyaml for
+# Ruby's psych extension) so they can be injected into the distroless image.
 RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
     && if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu; fi \
     && groupadd --gid "${CNB_GROUP_ID}" cnb \
@@ -27,7 +30,11 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
        --uid  "${CNB_USER_ID}" \
        --gid  cnb \
        --no-create-home \
-       cnb
+       cnb \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       libyaml-0-2 \
+    && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
 
@@ -40,6 +47,10 @@ ARG CNB_STACK_ID="io.buildpacks.stacks.jammy"
 # Inject user/group data so the CNB lifecycle can resolve the cnb user.
 COPY --from=ubuntu-setup /etc/passwd /etc/passwd
 COPY --from=ubuntu-setup /etc/group  /etc/group
+
+# Inject runtime libraries required by language buildpacks that are not
+# present in the distroless base image.
+COPY --from=ubuntu-setup /usr/lib/x86_64-linux-gnu/libyaml* /usr/lib/x86_64-linux-gnu/
 
 LABEL io.buildpacks.stack.id="${CNB_STACK_ID}"
 LABEL io.buildpacks.base.distro.name="distroless"

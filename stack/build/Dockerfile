@@ -28,6 +28,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
        libssl-dev \
        zlib1g-dev \
        libffi-dev \
+       libyaml-dev \
        unzip \
        zip \
     && rm -rf /var/lib/apt/lists/*
