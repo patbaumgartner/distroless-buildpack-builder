@@ -82,6 +82,7 @@ test_sample() {
   info "  → Starting container..."
   docker run -d --rm \
     --name "${container}" \
+    -e PORT="${PORT}" \
     -p "${PORT}:${PORT}" \
     "${image}" >/dev/null
 
