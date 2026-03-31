@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "description": "Tracks builder.toml versions (CNB lifecycle + Paketo buildpacks) that Dependabot cannot handle. All other ecosystems are managed by dependabot.yml.",
+  "enabledManagers": ["custom.regex"],
+  "labels": ["dependencies", "renovate"],
+  "packageRules": [
+    {
+      "matchManagers": ["custom.regex"],
+      "groupName": "builder.toml versions",
+      "schedule": ["before 7am on Monday"],
+      "commitMessagePrefix": "chore(deps):"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "CNB lifecycle version in builder.toml",
+      "managerFilePatterns": ["/^builder\\.toml$/"],
+      "matchStrings": [
+        "(?m)\\[lifecycle\\]\\s*\\n\\s*version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "buildpacks/lifecycle",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Paketo buildpack URI versions in [[buildpacks]] sections",
+      "managerFilePatterns": ["/^builder\\.toml$/"],
+      "matchStrings": [
+        "uri\\s*=\\s*\"docker://(?:docker\\.io/)?(?<depName>[^:\"]+):(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Buildpack versions in [[order.group]] sections — kept in sync with [[buildpacks]] URIs",
+      "managerFilePatterns": ["/^builder\\.toml$/"],
+      "matchStrings": [
+        "id\\s*=\\s*\"paketo-buildpacks/(?<depName>[^\"]+)\"\\s*\\n\\s*version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "paketobuildpacks/{{{depName}}}",
+      "datasourceTemplate": "docker"
+    }
+  ]
+}

@@ -1,0 +1,184 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Weekly scheduled scan to catch newly disclosed CVEs.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Scan Dockerfiles with Hadolint (Dockerfile best practices)
+  # -------------------------------------------------------------------------
+  hadolint:
+    name: Hadolint – Dockerfile lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Run hadolint on build Dockerfile
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          dockerfile: stack/build/Dockerfile
+          format: sarif
+          output-file: hadolint-build.sarif
+
+      - name: Run hadolint on run Dockerfile
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          dockerfile: stack/run/Dockerfile
+          format: sarif
+          output-file: hadolint-run.sarif
+
+      - name: Upload hadolint SARIF (build image)
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        if: always()
+        with:
+          sarif_file: hadolint-build.sarif
+          category: hadolint-build
+
+      - name: Upload hadolint SARIF (run image)
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        if: always()
+        with:
+          sarif_file: hadolint-run.sarif
+          category: hadolint-run
+
+  # -------------------------------------------------------------------------
+  # Trivy – filesystem / IaC scan (builder.toml, Dockerfiles, workflows)
+  # -------------------------------------------------------------------------
+  trivy-fs:
+    name: Trivy – filesystem scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Scan filesystem with Trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Trivy SARIF – filesystem
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  # -------------------------------------------------------------------------
+  # Trivy – container image scan (build stack image)
+  # -------------------------------------------------------------------------
+  trivy-image-build:
+    name: Trivy – build stack image scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Build build stack image (local)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/build
+          load: true
+          tags: distroless-buildpack-builder/build:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan build stack image with Trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: image
+          scan-ref: distroless-buildpack-builder/build:scan
+          format: sarif
+          output: trivy-build-image.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Trivy SARIF – build stack image
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        if: always()
+        with:
+          sarif_file: trivy-build-image.sarif
+          category: trivy-build-image
+
+  # -------------------------------------------------------------------------
+  # Trivy – container image scan (run stack image)
+  # -------------------------------------------------------------------------
+  trivy-image-run:
+    name: Trivy – run stack image scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Build run stack image (local)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/run
+          load: true
+          tags: distroless-buildpack-builder/run:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan run stack image with Trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: image
+          scan-ref: distroless-buildpack-builder/run:scan
+          format: sarif
+          output: trivy-run-image.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Trivy SARIF – run stack image
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        if: always()
+        with:
+          sarif_file: trivy-run-image.sarif
+          category: trivy-run-image

@@ -1,0 +1,12 @@
+# Force LF line endings for text files to avoid CRLF issues
+* text=auto eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.mod text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
+Procfile text eol=lf

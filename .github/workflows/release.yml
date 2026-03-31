@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for tagged images to be available
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          images=(
+            "${{ env.IMAGE_BASE }}:${TAG}"
+            "${{ env.IMAGE_BASE }}/build:${TAG}"
+            "${{ env.IMAGE_BASE }}/run:${TAG}"
+          )
+
+          for image in "${images[@]}"; do
+            echo "Checking availability for ${image}"
+            found=0
+            for i in $(seq 1 20); do
+              if docker manifest inspect "${image}" >/dev/null 2>&1; then
+                found=1
+                echo "Image available: ${image}"
+                break
+              fi
+              echo "Waiting for ${image} (${i}/20)"
+              sleep 15
+            done
+
+            if [[ "${found}" -ne 1 ]]; then
+              echo "Image not available in time: ${image}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [[ -n "${PREV_TAG}" ]]; then
+            LOG=$(git log --oneline "${PREV_TAG}..HEAD" 2>/dev/null || git log --oneline)
+          else
+            LOG=$(git log --oneline)
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "${LOG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Docker Images
+
+            ### Builder
+            ```
+            docker pull ${{ env.IMAGE_BASE }}:${{ github.ref_name }}
+            ```
+
+            ### Stack Images
+            ```
+            docker pull ${{ env.IMAGE_BASE }}/build:${{ github.ref_name }}
+            docker pull ${{ env.IMAGE_BASE }}/run:${{ github.ref_name }}
+            ```
+
+            ## Usage
+
+            ```bash
+            pack build my-app \
+              --builder ${{ env.IMAGE_BASE }}:${{ github.ref_name }}
+            ```

@@ -1,0 +1,16 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.github.patbaumgartner.rewrite.CleanupRecipePack
+displayName: Cleanup recipe pack for Java samples
+description: Applies deterministic code cleanup recipes that are safe for regular automation.
+recipeList:
+  - org.openrewrite.java.OrderImports
+  - org.openrewrite.java.RemoveUnusedImports
+  - org.openrewrite.java.format.AutoFormat
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.github.patbaumgartner.rewrite.ModernizeRecipePack
+displayName: Modernization recipe pack for Java samples
+description: Curated modernization pack used by scheduled automation.
+recipeList:
+  - io.github.patbaumgartner.rewrite.CleanupRecipePack

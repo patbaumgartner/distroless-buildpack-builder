@@ -1,0 +1,15 @@
+{
+  "name": "distroless-sample-nodejs",
+  "version": "1.0.0",
+  "description": "Sample Node.js application for distroless buildpack builder integration tests",
+  "main": "server.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
