@@ -1,0 +1,56 @@
+name: Dependency Policy Review
+
+on:
+  schedule:
+    - cron: "0 8 1 */3 *"
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-policy-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  open-review-issue:
+    name: Open quarterly governance review issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create governance review issue when missing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = 'Quarterly dependency governance review';
+
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`
+            });
+
+            if (existing.data.total_count > 0) {
+              core.info('Review issue already open. Skipping creation.');
+              return;
+            }
+
+            const body = [
+              'Quarterly review checklist for dependency governance:',
+              '',
+              '- [ ] Verify Dependabot and Renovate schedules still match team capacity.',
+              '- [ ] Review grouped update rules and PR limits.',
+              '- [ ] Confirm update coverage for all ecosystems in samples/.',
+              '- [ ] Validate workflow action pinning and deprecations.',
+              '- [ ] Review OpenRewrite recipe packs and automation behavior.',
+              '- [ ] Close this issue when all checks are complete.'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ['dependencies', 'governance']
+            });

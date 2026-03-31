@@ -1,0 +1,125 @@
+name: OpenRewrite
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 5 1 * *"
+  workflow_dispatch:
+    inputs:
+      apply_changes:
+        description: "Apply modernization recipes and open a PR"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: openrewrite-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  REWRITE_PLUGIN_VERSION: "6.22.1"
+  REWRITE_CONFIG_PATH: "${{ github.workspace }}/openrewrite/rewrite.yml"
+
+jobs:
+  dry-run:
+    name: Dry run curated OpenRewrite packs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Run OpenRewrite dry run (java sample)
+        run: |
+          mvn -B -f samples/java/pom.xml --no-transfer-progress \
+            org.openrewrite.maven:rewrite-maven-plugin:${{ env.REWRITE_PLUGIN_VERSION }}:dryRun \
+            -Drewrite.configLocation="${{ env.REWRITE_CONFIG_PATH }}" \
+            -Drewrite.activeRecipes=io.github.patbaumgartner.rewrite.CleanupRecipePack \
+            -Drewrite.exportDatatables=true
+
+      - name: Run OpenRewrite dry run (java-native-image sample)
+        run: |
+          mvn -B -f samples/java-native-image/pom.xml --no-transfer-progress \
+            org.openrewrite.maven:rewrite-maven-plugin:${{ env.REWRITE_PLUGIN_VERSION }}:dryRun \
+            -Drewrite.configLocation="${{ env.REWRITE_CONFIG_PATH }}" \
+            -Drewrite.activeRecipes=io.github.patbaumgartner.rewrite.CleanupRecipePack \
+            -Drewrite.exportDatatables=true
+
+      - name: Upload OpenRewrite dry-run reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrewrite-dry-run-${{ github.run_id }}
+          path: |
+            samples/java/target/rewrite/**
+            samples/java-native-image/target/rewrite/**
+
+  modernization-pr:
+    name: Scheduled OpenRewrite modernization PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [dry-run]
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.apply_changes == true)
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Apply OpenRewrite modernization pack (java sample)
+        run: |
+          mvn -B -f samples/java/pom.xml --no-transfer-progress \
+            org.openrewrite.maven:rewrite-maven-plugin:${{ env.REWRITE_PLUGIN_VERSION }}:run \
+            -Drewrite.configLocation="${{ env.REWRITE_CONFIG_PATH }}" \
+            -Drewrite.activeRecipes=io.github.patbaumgartner.rewrite.ModernizeRecipePack \
+            -Drewrite.exportDatatables=true
+
+      - name: Apply OpenRewrite modernization pack (java-native-image sample)
+        run: |
+          mvn -B -f samples/java-native-image/pom.xml --no-transfer-progress \
+            org.openrewrite.maven:rewrite-maven-plugin:${{ env.REWRITE_PLUGIN_VERSION }}:run \
+            -Drewrite.configLocation="${{ env.REWRITE_CONFIG_PATH }}" \
+            -Drewrite.activeRecipes=io.github.patbaumgartner.rewrite.ModernizeRecipePack \
+            -Drewrite.exportDatatables=true
+
+      - name: Create modernization pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(rewrite): apply OpenRewrite modernization pack"
+          title: "chore(rewrite): apply monthly modernization pack"
+          body: |
+            Automated monthly OpenRewrite updates for Java sample projects.
+
+            Applied recipe pack:
+            - io.github.patbaumgartner.rewrite.ModernizeRecipePack
+          branch: "chore/openrewrite-modernization"
+          delete-branch: true
+          labels: |
+            dependencies
+            java
+            automation

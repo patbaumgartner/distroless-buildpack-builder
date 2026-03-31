@@ -1,0 +1,14 @@
+[_]
+schema-version = "0.2"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_PHP_SERVER"
+  value = "php-server"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_PHP_WEB_DIR"
+  value = "htdocs"
+
+[[ io.buildpacks.build.env ]]
+  name  = "BP_DIRECT_PROCESS"
+  value = "true"

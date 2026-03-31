@@ -1,0 +1,4 @@
+{
+    "name": "distroless/sample-php",
+    "description": "Sample PHP application for distroless buildpack builder integration tests"
+}

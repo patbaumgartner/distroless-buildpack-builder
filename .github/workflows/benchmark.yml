@@ -1,0 +1,484 @@
+name: Benchmark
+
+on:
+  # Run after Build and Push completes so the builder image is available.
+  workflow_run:
+    workflows:
+      - "Build and Push"
+    branches:
+      - main
+    types:
+      - completed
+  # Weekly benchmark to track build-time trends.
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Number of build iterations per sample"
+        required: false
+        default: "3"
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+  BUDGET_FILE: benchmarks/budgets.json
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Benchmark build times for each sample application
+  # -------------------------------------------------------------------------
+  benchmark:
+    name: Build-time benchmark (${{ matrix.sample }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sample: nodejs
+          - sample: go
+          - sample: python
+          - sample: ruby
+          - sample: dotnet-core
+          - sample: php
+          - sample: web-servers
+          - sample: java
+            java_version: "25"
+          - sample: java-native-image
+            java_version: "25"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@06e250da5bb4ccb9a2103719a21d2a7f2252fe83 # v5.11.0
+
+      - name: Set up Java (Spring Boot sample only)
+        if: matrix.java_version != ''
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java_version }}
+          cache: maven
+
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run build benchmark (${{ matrix.sample }})
+        id: bench
+        run: |
+          set -euo pipefail
+          ITERATIONS="${{ github.event.inputs.iterations || '3' }}"
+          SAMPLE="${{ matrix.sample }}"
+          BUILDER="${{ env.IMAGE_BASE }}:latest"
+          IMAGE="benchmark/${{ matrix.sample }}:bench"
+          TOTAL=0
+
+          {
+            echo "### Benchmark: ${SAMPLE} (${ITERATIONS} iterations)"
+            echo ""
+            echo "| Iteration | Duration (s) |"
+            echo "|-----------|-------------|"  
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for i in $(seq 1 "${ITERATIONS}"); do
+            START=$(date +%s%N)
+            pack build "${IMAGE}" \
+              --path "./samples/${SAMPLE}" \
+              --builder "${BUILDER}" \
+              --trust-builder \
+              --pull-policy if-not-present \
+              --clear-cache 2>&1 | tail -20
+            END=$(date +%s%N)
+            ELAPSED=$(( (END - START) / 1000000000 ))
+            TOTAL=$((TOTAL + ELAPSED))
+            echo "| ${i} | ${ELAPSED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "Iteration ${i}: ${ELAPSED}s"
+          done
+
+          AVG=$((TOTAL / ITERATIONS))
+          {
+            echo ""
+            echo "**Average build time: ${AVG}s** (total: ${TOTAL}s over ${ITERATIONS} runs)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "avg=${AVG}"
+            echo "total=${TOTAL}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Print summary
+        run: |
+          echo "Sample:     ${{ matrix.sample }}"
+          echo "Avg time:   ${{ steps.bench.outputs.avg }}s"
+          echo "Total time: ${{ steps.bench.outputs.total }}s"
+
+      - name: Check build-time SLO budget
+        env:
+          SAMPLE: ${{ matrix.sample }}
+          AVG: ${{ steps.bench.outputs.avg }}
+        run: |
+          set -euo pipefail
+          BUDGET=$(jq -r --arg s "${SAMPLE}" '.build_time_seconds[$s]' "${{ env.BUDGET_FILE }}")
+
+          if [[ -z "${BUDGET}" || "${BUDGET}" == "null" ]]; then
+            echo "Missing build-time budget for sample: ${SAMPLE}" >&2
+            exit 1
+          fi
+
+          echo "Build-time budget: ${BUDGET}s"
+          if (( AVG > BUDGET )); then
+            echo "Build-time SLO failed for ${SAMPLE}: ${AVG}s > ${BUDGET}s" >&2
+            exit 1
+          fi
+
+          echo "Build-time SLO passed for ${SAMPLE}: ${AVG}s <= ${BUDGET}s"
+
+      - name: Persist build-time metrics
+        env:
+          SAMPLE: ${{ matrix.sample }}
+          AVG: ${{ steps.bench.outputs.avg }}
+          TOTAL: ${{ steps.bench.outputs.total }}
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark-results
+          jq -n \
+            --arg sample "${SAMPLE}" \
+            --arg avg "${AVG}" \
+            --arg total "${TOTAL}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              sample: $sample,
+              build_time_avg_seconds: ($avg | tonumber),
+              build_time_total_seconds: ($total | tonumber),
+              run_id: $run_id,
+              git_sha: $sha,
+              created_at: $created_at
+            }' > "benchmark-results/build-${SAMPLE}.json"
+
+      - name: Upload build-time metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-build-${{ matrix.sample }}-${{ github.run_id }}
+          path: benchmark-results/build-${{ matrix.sample }}.json
+
+  # -------------------------------------------------------------------------
+  # Benchmark runtime startup and memory footprint for each sample
+  # -------------------------------------------------------------------------
+  runtime-footprint:
+    name: Runtime footprint benchmark (${{ matrix.sample }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sample: nodejs
+          - sample: go
+          - sample: python
+          - sample: ruby
+          - sample: dotnet-core
+          - sample: php
+          - sample: web-servers
+          - sample: java
+            java_version: "25"
+          - sample: java-native-image
+            java_version: "25"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@06e250da5bb4ccb9a2103719a21d2a7f2252fe83 # v5.11.0
+
+      - name: Set up Java (Spring Boot sample only)
+        if: matrix.java_version != ''
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java_version }}
+          cache: maven
+
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Run runtime benchmark (${{ matrix.sample }})
+        env:
+          SAMPLE: ${{ matrix.sample }}
+          BUILDER: ${{ env.IMAGE_BASE }}:latest
+          APP_PORT: "8080"
+        run: |
+          set -euo pipefail
+
+          IMAGE="benchmark/${SAMPLE}:runtime"
+          CONTAINER="runtime-bench-${SAMPLE}"
+
+          to_mib() {
+            local value="${1:-0}"
+            local number unit
+            number=$(echo "${value}" | sed -E 's/^([0-9.]+).*/\1/')
+            unit=$(echo "${value}" | sed -E 's/^[0-9.]+([A-Za-z]+).*/\1/')
+
+            case "${unit}" in
+              B)
+                awk -v n="${number}" 'BEGIN { printf "%.2f", n / 1048576 }'
+                ;;
+              KB|KiB)
+                awk -v n="${number}" 'BEGIN { printf "%.2f", n / 1024 }'
+                ;;
+              MB|MiB)
+                awk -v n="${number}" 'BEGIN { printf "%.2f", n }'
+                ;;
+              GB|GiB)
+                awk -v n="${number}" 'BEGIN { printf "%.2f", n * 1024 }'
+                ;;
+              *)
+                echo "0.00"
+                ;;
+            esac
+          }
+
+          cleanup() {
+            docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          pack build "${IMAGE}" \
+            --path "./samples/${SAMPLE}" \
+            --builder "${BUILDER}" \
+            --trust-builder \
+            --pull-policy if-not-present \
+            --clear-cache >/dev/null
+
+          START=$(date +%s)
+          docker run -d --rm --name "${CONTAINER}" -p "127.0.0.1::${APP_PORT}" "${IMAGE}" >/dev/null
+
+          HOST_PORT=$(docker port "${CONTAINER}" "${APP_PORT}/tcp" | head -n1 | awk -F: '{print $2}')
+          if [[ -z "${HOST_PORT}" ]]; then
+            echo "Failed to resolve mapped host port for ${SAMPLE}" >&2
+            exit 1
+          fi
+
+          READY=0
+          for _ in $(seq 1 60); do
+            if curl -sf "http://localhost:${HOST_PORT}/" >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${READY}" -ne 1 ]]; then
+            echo "Runtime startup probe failed for ${SAMPLE}" >&2
+            exit 1
+          fi
+
+          END=$(date +%s)
+          STARTUP=$((END - START))
+
+          RAW_STATS=$(docker stats --no-stream --format '{{.MemUsage}}|{{.CPUPerc}}' "${CONTAINER}")
+          MEM_RAW=$(echo "${RAW_STATS}" | cut -d'|' -f1 | awk '{print $1}')
+          CPU_PCT=$(echo "${RAW_STATS}" | cut -d'|' -f2 | tr -d '%')
+          MEM_MIB=$(to_mib "${MEM_RAW}")
+
+          STARTUP_BUDGET=$(jq -r --arg s "${SAMPLE}" '.runtime.startup_seconds[$s]' "${{ env.BUDGET_FILE }}")
+          MEM_BUDGET=$(jq -r --arg s "${SAMPLE}" '.runtime.memory_mib[$s]' "${{ env.BUDGET_FILE }}")
+
+          {
+            echo "### Runtime benchmark: ${SAMPLE}"
+            echo ""
+            echo "- Startup time: ${STARTUP}s (budget: ${STARTUP_BUDGET}s)"
+            echo "- Memory usage: ${MEM_MIB} MiB (budget: ${MEM_BUDGET} MiB)"
+            echo "- CPU usage: ${CPU_PCT}%"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if (( STARTUP > STARTUP_BUDGET )); then
+            echo "Startup SLO failed for ${SAMPLE}: ${STARTUP}s > ${STARTUP_BUDGET}s" >&2
+            exit 1
+          fi
+
+          awk -v m="${MEM_MIB}" -v b="${MEM_BUDGET}" 'BEGIN { if (m > b) exit 1; exit 0 }' || {
+            echo "Memory SLO failed for ${SAMPLE}: ${MEM_MIB} MiB > ${MEM_BUDGET} MiB" >&2
+            exit 1
+          }
+
+          mkdir -p benchmark-results
+          jq -n \
+            --arg sample "${SAMPLE}" \
+            --arg startup "${STARTUP}" \
+            --arg memory_mib "${MEM_MIB}" \
+            --arg cpu_pct "${CPU_PCT}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              sample: $sample,
+              startup_seconds: ($startup | tonumber),
+              memory_mib: ($memory_mib | tonumber),
+              cpu_percent: ($cpu_pct | tonumber),
+              run_id: $run_id,
+              git_sha: $sha,
+              created_at: $created_at
+            }' > "benchmark-results/runtime-${SAMPLE}.json"
+
+      - name: Upload runtime metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-runtime-${{ matrix.sample }}-${{ github.run_id }}
+          path: benchmark-results/runtime-${{ matrix.sample }}.json
+
+  # -------------------------------------------------------------------------
+  # Compare distroless run image vs. Paketo Noble run image
+  # -------------------------------------------------------------------------
+  compare-baseline:
+    name: Compare run image size vs. Paketo Noble baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull distroless run image
+        id: distroless
+        run: |
+          set -euo pipefail
+          IMAGE="${{ env.IMAGE_BASE }}/run:latest"
+          for attempt in 1 2 3; do
+            if docker pull "${IMAGE}"; then
+              break
+            fi
+            echo "Pull attempt ${attempt} failed — retrying in 10s..."
+            sleep 10
+            if [[ "${attempt}" -eq 3 ]]; then
+              echo "Failed to pull ${IMAGE} after 3 attempts" >&2
+              exit 1
+            fi
+          done
+          SIZE=$(docker image inspect "${IMAGE}" --format '{{.Size}}')
+          echo "size=${SIZE}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Distroless run image: ${SIZE} bytes"
+
+      - name: Pull Paketo Noble run image
+        id: baseline
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          RUN_IMAGE="paketobuildpacks/run-noble-base:latest"
+          for attempt in 1 2 3; do
+            if docker pull "${RUN_IMAGE}"; then
+              break
+            fi
+            echo "Pull attempt ${attempt} failed — retrying in 10s..."
+            sleep 10
+            if [[ "${attempt}" -eq 3 ]]; then
+              echo "Failed to pull ${RUN_IMAGE} after 3 attempts (baseline comparison will be skipped)" >&2
+              exit 1
+            fi
+          done
+          SIZE=$(docker image inspect "${RUN_IMAGE}" --format '{{.Size}}')
+          echo "size=${SIZE}" >> "$GITHUB_OUTPUT"
+          echo "image=${RUN_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Paketo Noble run image: ${RUN_IMAGE} – ${SIZE} bytes"
+
+      - name: Write run image size comparison summary
+        env:
+          DISTROLESS_SIZE: ${{ steps.distroless.outputs.size }}
+          DISTROLESS_IMAGE: ${{ steps.distroless.outputs.image }}
+          BASELINE_SIZE: ${{ steps.baseline.outputs.size }}
+          BASELINE_IMAGE: ${{ steps.baseline.outputs.image }}
+        run: |
+          format_mb() {
+            local b="${1:-}"
+            if [[ "${b}" =~ ^[0-9]+$ ]] && [[ "${b}" -gt 0 ]]; then
+              echo "$(( b / 1024 / 1024 )) MB"
+            else
+              echo "N/A"
+            fi
+          }
+
+          {
+            echo "## Run image size comparison – distroless vs. Paketo Noble"
+            echo ""
+            echo "| Run Image | Size |"
+            echo "|-----------|------|"
+            echo "| ${DISTROLESS_IMAGE} | $(format_mb "${DISTROLESS_SIZE}") |"
+            echo "| ${BASELINE_IMAGE} | $(format_mb "${BASELINE_SIZE}") |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check run image size SLO budget
+        env:
+          DISTROLESS_SIZE: ${{ steps.distroless.outputs.size }}
+        run: |
+          set -euo pipefail
+          MAX_MB=$(jq -r '.run_image_max_mb' "${{ env.BUDGET_FILE }}")
+          MAX_BYTES=$((MAX_MB * 1024 * 1024))
+
+          echo "Run image size budget: ${MAX_MB} MB"
+          if (( DISTROLESS_SIZE > MAX_BYTES )); then
+            echo "Run image size SLO failed: ${DISTROLESS_SIZE} bytes > ${MAX_BYTES} bytes" >&2
+            exit 1
+          fi
+
+          echo "Run image size SLO passed"
+
+      - name: Persist run image comparison metrics
+        env:
+          DISTROLESS_SIZE: ${{ steps.distroless.outputs.size }}
+          DISTROLESS_IMAGE: ${{ steps.distroless.outputs.image }}
+          BASELINE_SIZE: ${{ steps.baseline.outputs.size }}
+          BASELINE_IMAGE: ${{ steps.baseline.outputs.image }}
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark-results
+          jq -n \
+            --arg distroless_image "${DISTROLESS_IMAGE}" \
+            --arg distroless_size "${DISTROLESS_SIZE}" \
+            --arg baseline_image "${BASELINE_IMAGE}" \
+            --arg baseline_size "${BASELINE_SIZE}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              distroless_image: $distroless_image,
+              distroless_size_bytes: ($distroless_size | tonumber),
+              baseline_image: (if $baseline_image == "" then null else $baseline_image end),
+              baseline_size_bytes: (if $baseline_size == "" then null else ($baseline_size | tonumber) end),
+              run_id: $run_id,
+              git_sha: $sha,
+              created_at: $created_at
+            }' > benchmark-results/run-image-comparison.json
+
+      - name: Upload run image comparison artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-run-image-comparison-${{ github.run_id }}
+          path: benchmark-results/run-image-comparison.json

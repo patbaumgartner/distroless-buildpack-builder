@@ -1,0 +1,169 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Allow manual triggering for on-demand integration test runs.
+  workflow_dispatch:
+
+concurrency:
+  group: integration-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/patbaumgartner/distroless-buildpack-builder
+  # Local tag used for the builder image created during CI (avoids GHCR pull).
+  BUILDER_LOCAL_TAG: distroless-builder:ci
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Smoke tests: build stack images locally and validate CNB labels.
+  # Fast check that does not require pack or buildpack downloads.
+  # -------------------------------------------------------------------------
+  smoke-tests:
+    name: Smoke tests – stack image labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Build build stack image (local)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/build
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/build:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build run stack image (local)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/run
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/run:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate stack image labels
+        run: bash tests/smoke/smoke_test.sh
+        env:
+          BUILD_IMAGE: ${{ env.IMAGE_BASE }}/build:test
+          RUN_IMAGE: ${{ env.IMAGE_BASE }}/run:test
+
+  # -------------------------------------------------------------------------
+  # Integration tests: build stack images + builder locally, then build and
+  # run each sample application.  Runs after smoke tests pass.
+  # -------------------------------------------------------------------------
+  integration-tests:
+    name: Integration – build and run samples
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: [smoke-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Set up pack CLI
+        uses: buildpacks/github-actions/setup-pack@06e250da5bb4ccb9a2103719a21d2a7f2252fe83 # v5.11.0
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Log in to GHCR (read-only, for pulling Paketo buildpacks)
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build stack images and tag them with the canonical "latest" names that
+      # builder.toml references, so pack builder create uses local images.
+      - name: Build build stack image (local, canonical tag)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/build
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/build:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build run stack image (local, canonical tag)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: ./stack/run
+          load: true
+          tags: ${{ env.IMAGE_BASE }}/run:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Create the builder from the locally-tagged stack images.
+      # --pull-policy if-not-present ensures local images are used instead of
+      # pulling from GHCR (which has no image yet on PR branches).
+      - name: Create builder locally
+        run: |
+          pack builder create "${{ env.BUILDER_LOCAL_TAG }}" \
+            --config builder.toml \
+            --pull-policy if-not-present
+
+      # Tag the local builder with the GHCR name that pom.xml references,
+      # so mvn spring-boot:build-image (pullPolicy=IF_NOT_PRESENT) finds it
+      # locally without pulling from the registry.
+      - name: Tag local builder with GHCR name
+        run: |
+          docker tag "${{ env.BUILDER_LOCAL_TAG }}" ghcr.io/patbaumgartner/distroless-buildpack-builder:latest
+
+      # ----- All samples (pack build) ----------------------------------------
+      # test_builder.sh tests nodejs, go, python, ruby, dotnet-core, php,
+      # web-servers by default and java + java-native-image with INCLUDE_JAVA=1.
+      - name: Build and verify all samples (pack)
+        run: |
+          BUILDER="${{ env.BUILDER_LOCAL_TAG }}" \
+          INCLUDE_JAVA=1 \
+          bash tests/integration/test_builder.sh
+
+      # ----- Java (mvn spring-boot:build-image) --------------------------------
+      - name: Build Spring Boot sample via mvn spring-boot:build-image
+        working-directory: ./samples/java
+        run: |
+          mvn spring-boot:build-image \
+            --no-transfer-progress \
+            -Dspring-boot.build-image.imageName=distroless-test/java-mvn:ci \
+            -Dspring-boot.build-image.pullPolicy=IF_NOT_PRESENT
+
+      - name: Run Spring Boot (mvn-built) container and verify endpoints
+        run: |
+          docker run -d --name java-mvn-test -p 8083:8080 distroless-test/java-mvn:ci
+          for i in $(seq 1 30); do
+            RESP=$(curl -sf http://localhost:8083/ 2>/dev/null || echo "")
+            if echo "${RESP}" | grep -qi "hello"; then
+              echo "Spring Boot (mvn) app responded: ${RESP}"
+              break
+            fi
+            echo "Waiting... (${i}/30)"
+            sleep 3
+          done
+          echo "${RESP}" | grep -qi "hello"
+          HEALTH=$(curl -sf http://localhost:8083/health)
+          echo "${HEALTH}" | grep -Eqi 'ok|status'
+          docker rm -f java-mvn-test

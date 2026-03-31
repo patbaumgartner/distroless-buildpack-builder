@@ -1,0 +1,38 @@
+{
+    "build_time_seconds": {
+        "nodejs": 240,
+        "go": 240,
+        "python": 300,
+        "ruby": 360,
+        "dotnet-core": 420,
+        "php": 300,
+        "web-servers": 180,
+        "java": 480,
+        "java-native-image": 1500
+    },
+    "runtime": {
+        "startup_seconds": {
+            "nodejs": 20,
+            "go": 15,
+            "python": 25,
+            "ruby": 30,
+            "dotnet-core": 25,
+            "php": 15,
+            "web-servers": 10,
+            "java": 35,
+            "java-native-image": 20
+        },
+        "memory_mib": {
+            "nodejs": 220,
+            "go": 120,
+            "python": 220,
+            "ruby": 260,
+            "dotnet-core": 260,
+            "php": 180,
+            "web-servers": 120,
+            "java": 420,
+            "java-native-image": 220
+        }
+    },
+    "run_image_max_mb": 220
+}

@@ -1,0 +1,146 @@
+name: Quality Gates
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: quality-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-automation:
+    name: Lint automation assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install shellcheck if missing
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+
+      - name: Run ShellCheck on shell scripts
+        run: |
+          set -euo pipefail
+          find tests -type f -name '*.sh' -print0 \
+            | xargs -0 -r shellcheck
+
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
+
+      - name: Run actionlint on GitHub workflows
+        run: |
+          set -euo pipefail
+          actionlint -color
+
+      - name: Install markdownlint-cli
+        run: sudo npm install -g markdownlint-cli@0.41.0
+
+      - name: Run markdownlint
+        run: |
+          set -euo pipefail
+          markdownlint . --config .markdownlint.yml --ignore samples/php/vendor
+
+  language-static-analysis:
+    name: Static analysis on sample apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Node.js syntax check
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${PWD}/samples/nodejs:/workspace" \
+            -w /workspace \
+            node:22 \
+            node --check server.js
+
+      - name: Go formatting and static checks
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l samples/go/main.go)"
+          (cd samples/go && go test ./... && go vet ./...)
+
+      - name: Python lint and type check
+        run: |
+          set -euo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install ruff mypy flask
+          ruff check samples/python/app.py
+          mypy --ignore-missing-imports samples/python/app.py
+
+      - name: Ruby syntax check
+        run: |
+          set -euo pipefail
+          docker run --rm -v "${PWD}/samples/ruby:/workspace" -w /workspace ruby:3.4 ruby -wc app.rb
+          docker run --rm -v "${PWD}/samples/ruby:/workspace" -w /workspace ruby:3.4 ruby -wc config.ru
+
+      - name: PHP lint and composer validation
+        run: |
+          set -euo pipefail
+          docker run --rm -v "${PWD}:/workspace" -w /workspace php:8.3-cli php -l samples/php/htdocs/index.php
+          docker run --rm -v "${PWD}:/workspace" -w /workspace composer:2 composer validate samples/php/composer.json
+
+      - name: .NET build with warnings as errors
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            -w /workspace \
+            mcr.microsoft.com/dotnet/sdk:9.0 \
+            dotnet build samples/dotnet-core/distroless-sample-dotnet.csproj -warnaserror
+
+      - name: Java sample checks
+        run: |
+          set -euo pipefail
+          mvn -B -f samples/java/pom.xml --no-transfer-progress test
+          mvn -B -f samples/java-native-image/pom.xml --no-transfer-progress test
+
+  checkstyle:
+    name: Checkstyle (${{ matrix.sample }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [java, java-native-image]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Run Checkstyle
+        working-directory: ./samples/${{ matrix.sample }}
+        run: mvn checkstyle:check --no-transfer-progress
