@@ -263,12 +263,22 @@ jobs:
           }
           trap cleanup EXIT
 
-          pack build "${IMAGE}" \
-            --path "./samples/${SAMPLE}" \
-            --builder "${BUILDER}" \
-            --trust-builder \
-            --pull-policy if-not-present \
-            --clear-cache >/dev/null
+          for attempt in 1 2 3; do
+            if pack build "${IMAGE}" \
+              --path "./samples/${SAMPLE}" \
+              --builder "${BUILDER}" \
+              --trust-builder \
+              --pull-policy if-not-present \
+              --clear-cache 2>&1 | tail -30; then
+              break
+            fi
+            echo "pack build attempt ${attempt} failed — retrying in 15s..."
+            sleep 15
+            if [[ "${attempt}" -eq 3 ]]; then
+              echo "pack build failed for ${SAMPLE} after 3 attempts" >&2
+              exit 1
+            fi
+          done
 
           START=$(date +%s)
           docker run -d --rm --name "${CONTAINER}" -p "127.0.0.1::${APP_PORT}" "${IMAGE}" >/dev/null
