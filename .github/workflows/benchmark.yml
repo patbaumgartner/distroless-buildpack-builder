@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@06e250da5bb4ccb9a2103719a21d2a7f2252fe83 # v5.11.0
+        uses: buildpacks/github-actions/setup-pack@b4faaabcd9dbc5fa332451ae33bce8b583f3ec1b # v5.12.0
 
       - name: Set up Java (Spring Boot sample only)
         if: matrix.java_version != ''
@@ -71,7 +71,7 @@ jobs:
           cache: maven
 
       - name: Log in to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -171,7 +171,7 @@ jobs:
             }' > "benchmark-results/build-${SAMPLE}.json"
 
       - name: Upload build-time metrics artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-build-${{ matrix.sample }}-${{ github.run_id }}
           path: benchmark-results/build-${{ matrix.sample }}.json
@@ -204,7 +204,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@06e250da5bb4ccb9a2103719a21d2a7f2252fe83 # v5.11.0
+        uses: buildpacks/github-actions/setup-pack@b4faaabcd9dbc5fa332451ae33bce8b583f3ec1b # v5.12.0
 
       - name: Set up Java (Spring Boot sample only)
         if: matrix.java_version != ''
@@ -215,7 +215,7 @@ jobs:
           cache: maven
 
       - name: Log in to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -352,7 +352,7 @@ jobs:
             }' > "benchmark-results/runtime-${SAMPLE}.json"
 
       - name: Upload runtime metrics artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-runtime-${{ matrix.sample }}-${{ github.run_id }}
           path: benchmark-results/runtime-${{ matrix.sample }}.json
@@ -370,7 +370,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Log in to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -488,7 +488,7 @@ jobs:
             }' > benchmark-results/run-image-comparison.json
 
       - name: Upload run image comparison artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-run-image-comparison-${{ github.run_id }}
           path: benchmark-results/run-image-comparison.json

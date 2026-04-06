@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload OpenRewrite dry-run reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openrewrite-dry-run-${{ github.run_id }}
           path: |
@@ -108,7 +108,7 @@ jobs:
             -Drewrite.exportDatatables=true
 
       - name: Create modernization pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(rewrite): apply OpenRewrite modernization pack"
           title: "chore(rewrite): apply monthly modernization pack"
