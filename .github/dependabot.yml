@@ -37,7 +37,10 @@ updates:
           - "*"
     ignore:
       - dependency-name: "ubuntu"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
 
   - package-ecosystem: "docker"
     directory: "/stack/run"
@@ -57,7 +60,10 @@ updates:
           - "*"
     ignore:
       - dependency-name: "ubuntu"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
 
   - package-ecosystem: "npm"
     directory: "/samples/nodejs"
