@@ -35,6 +35,9 @@ updates:
       build-stack-images:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "ubuntu"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/stack/run"
@@ -52,6 +55,9 @@ updates:
       run-stack-images:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "ubuntu"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/samples/nodejs"
