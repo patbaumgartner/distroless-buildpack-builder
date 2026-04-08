@@ -3,7 +3,8 @@
 # libraries required by Paketo buildpacks compiled against Ubuntu 22.04.
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
-FROM ubuntu:24.04@sha256:84e77dee7d1bc93fb029a45e3c6cb9d8aa4831ccfcc7103d36e876938d28895b AS icu-compat
+# Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
+FROM ubuntu:22.04@sha256:eb29ed27b0821dca09c2e28b39135e185fc1302036427d5f4d70a41ce8fd7659 AS icu-compat
 # hadolint ignore=DL3008
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
