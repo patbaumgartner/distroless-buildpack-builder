@@ -5,9 +5,10 @@
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
 FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7 AS icu-compat
+ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
 # hadolint ignore=DL3008
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
+RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
+    && DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} install -y --no-install-recommends libicu70 \
     && rm -rf /var/lib/apt/lists/* \
     && ARCH="$(uname -m)" \
     && mkdir -p /staging \
@@ -28,9 +29,10 @@ LABEL org.opencontainers.image.source="https://github.com/patbaumgartner/distrol
 LABEL org.opencontainers.image.description="Build stack image for the Distroless Buildpack Builder (Ubuntu 24.04 Noble)"
 
 # Install build-time dependencies mirroring the official Paketo build stack.
+ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
 # hadolint ignore=DL3008
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
+    && DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     curl \
