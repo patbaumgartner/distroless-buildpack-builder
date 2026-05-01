@@ -25,7 +25,7 @@ permissions:
   contents: read
 
 env:
-  REWRITE_PLUGIN_VERSION: "6.22.1"
+  REWRITE_PLUGIN_VERSION: "6.38.0"
   REWRITE_CONFIG_PATH: "${{ github.workspace }}/openrewrite/rewrite.yml"
 
 jobs:
@@ -108,18 +108,35 @@ jobs:
             -Drewrite.exportDatatables=true
 
       - name: Create modernization pull request
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        with:
-          commit-message: "chore(rewrite): apply OpenRewrite modernization pack"
-          title: "chore(rewrite): apply monthly modernization pack"
-          body: |
-            Automated monthly OpenRewrite updates for Java sample projects.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            Applied recipe pack:
-            - io.github.patbaumgartner.rewrite.ModernizeRecipePack
-          branch: "chore/openrewrite-modernization"
-          delete-branch: true
-          labels: |
-            dependencies
-            java
-            automation
+          if git diff --quiet; then
+            echo "No changes to commit, skipping PR creation"
+            exit 0
+          fi
+
+          BRANCH="chore/openrewrite-modernization"
+          git checkout -B "$BRANCH"
+          git add -A
+          git commit -m "chore(rewrite): apply OpenRewrite modernization pack"
+          git push --force-with-lease origin "$BRANCH"
+
+          if gh pr view "$BRANCH" --json number > /dev/null 2>&1; then
+            echo "PR already exists for $BRANCH"
+          else
+            gh pr create \
+              --title "chore(rewrite): apply monthly modernization pack" \
+              --body "Automated monthly OpenRewrite updates for Java sample projects.
+
+          Applied recipe pack:
+          - io.github.patbaumgartner.rewrite.ModernizeRecipePack" \
+              --label "dependencies" \
+              --label "java" \
+              --label "automation" \
+              --base main \
+              --head "$BRANCH"
+          fi
