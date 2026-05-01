@@ -206,10 +206,6 @@ SARIF reports are published to the [Security tab](https://github.com/patbaumgart
 
 See [SECURITY.md](SECURITY.md) for the vulnerability disclosure policy.
 
-## In-Depth Engineering Review
-
-See [docs/repository-review.md](docs/repository-review.md) for a full software-crafter review of architecture, quality gates, risk areas, and a prioritized technical improvement backlog.
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
