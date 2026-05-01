@@ -1,0 +1,7 @@
+"The recipe","Source file count","Source file changed count","Cumulative scanning time (ns)","Max scanning time (ns)","Cumulative edit time (ns)","Max edit time (ns)"
+"The recipe whose stats are being measured both individually and cumulatively.","The number of source files the recipe ran over.","The number of source files which were changed in the recipe run. Includes files created, deleted, and edited.","The total time spent across the scanning phase of this recipe.","The max time scanning any one source file.","The total time spent across the editing phase of this recipe.","The max time editing any one source file."
+"io.github.patbaumgartner.rewrite.CleanupRecipePack","3","0","0","0","34545","30949"
+"org.openrewrite.java.RemoveUnusedImports","3","0","0","0","6958766","6954279"
+"org.openrewrite.java.format.AutoFormat","3","0","0","0","28956816","28954563"
+"org.openrewrite.java.OrderImports","3","0","0","0","12716605","12715002"
+"io.github.patbaumgartner.rewrite.ModernizeRecipePack","3","0","0","0","341180","331254"
