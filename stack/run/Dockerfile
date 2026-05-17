@@ -6,7 +6,7 @@
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
-FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7 AS icu-compat
+FROM ubuntu:22.04@sha256:4f838adc7181d9039ac795a7d0aba05a9bd9ecd480d294483169c5def983b64d AS icu-compat
 # hadolint ignore=DL3008
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
@@ -59,7 +59,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
 
 
 # Stage 3: Final distroless runtime – inject user, libs, and certs into the minimal base
-FROM gcr.io/distroless/cc:nonroot@sha256:8f960b7fc6a5d6e28bb07f982655925d6206678bd9a6cde2ad00ddb5e2077d78
+FROM gcr.io/distroless/cc:nonroot@sha256:e1fd250ce83d94603e9887ec991156a6c26905a6b0001039b7a43699018c0733
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
