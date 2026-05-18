@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@3fc05449a74f1a007f75e87d46afea4fb471127f # v5.12.1
+        uses: buildpacks/github-actions/setup-pack@2d50d4a5ef67c8e57fde3c935104dc22f7d10fd0 # v5.12.2
 
       - name: Set up Java (Spring Boot sample only)
         if: matrix.java_version != ''
@@ -204,7 +204,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@3fc05449a74f1a007f75e87d46afea4fb471127f # v5.12.1
+        uses: buildpacks/github-actions/setup-pack@2d50d4a5ef67c8e57fde3c935104dc22f7d10fd0 # v5.12.2
 
       - name: Set up Java (Spring Boot sample only)
         if: matrix.java_version != ''
