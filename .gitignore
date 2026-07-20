@@ -11,7 +11,8 @@
 # Editor files
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.swp
 *.swo
 *~
