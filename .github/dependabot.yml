@@ -5,7 +5,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -21,7 +21,7 @@ updates:
   directory: /stack/build
   schedule:
     interval: daily
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -43,7 +43,7 @@ updates:
   directory: /stack/run
   schedule:
     interval: daily
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -66,7 +66,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -83,7 +83,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -100,7 +100,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -122,7 +122,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -144,7 +144,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -161,7 +161,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -178,7 +178,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
@@ -195,7 +195,7 @@ updates:
   schedule:
     interval: weekly
     day: monday
-    time: 06:00
+    time: "06:00"
     timezone: Europe/Zurich
   commit-message:
     prefix: chore(deps)
