@@ -231,6 +231,33 @@ class BuildpacksSectionTests(unittest.TestCase):
             errors_for(buildpacks=[{"uri": "docker://paketobuildpacks/java"}]),
         )
 
+    def test_moving_tag_is_rejected(self) -> None:
+        for tag in ("latest", "edge", "main", "master"):
+            with self.subTest(tag=tag):
+                self.assertIn(
+                    f"[[buildpacks]][0] uri must pin a version, not '{tag}': "
+                    f"docker://paketobuildpacks/java:{tag}",
+                    errors_for(
+                        buildpacks=[{"uri": f"docker://paketobuildpacks/java:{tag}"}]
+                    ),
+                )
+
+    def test_several_versions_of_one_buildpack_are_all_selectable(self) -> None:
+        """A builder may embed more than one version of the same buildpack."""
+        self.assertEqual(
+            errors_for(
+                buildpacks=[
+                    {"uri": "docker://paketobuildpacks/java:21.4.0"},
+                    {"uri": "docker://paketobuildpacks/java:20.1.0"},
+                ],
+                order=[
+                    {"group": [{"id": "paketo-buildpacks/java", "version": "21.4.0"}]},
+                    {"group": [{"id": "paketo-buildpacks/java", "version": "20.1.0"}]},
+                ],
+            ),
+            [],
+        )
+
 
 class OrderSectionTests(unittest.TestCase):
     def test_missing_section(self) -> None:

@@ -37,6 +37,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
         sys.exit("builder.toml validation needs Python 3.11+ or the 'tomli' package")
 
 DOCKER_URI_PREFIX = "docker://"
+MOVING_TAGS = frozenset({"latest", "edge", "main", "master"})
 
 
 def _normalize_repository(repository: str) -> str:
@@ -100,17 +101,21 @@ def _validate_lifecycle(data: dict[str, Any]) -> list[str]:
     return []
 
 
-def _validate_buildpacks(data: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
-    """Return ``({repository: tag}, errors)``.
+def _validate_buildpacks(
+    data: dict[str, Any],
+) -> tuple[dict[str, set[str]], list[str]]:
+    """Return ``({repository: {tags}}, errors)``.
 
-    The map is always returned, even when the section is missing, so callers
-    can cross-reference ``[[order]]`` entries unconditionally.
+    A builder may legitimately embed several versions of the same buildpack,
+    so tags are collected into a set rather than overwriting each other. The
+    map is always returned, even when the section is missing, so callers can
+    cross-reference ``[[order]]`` entries unconditionally.
     """
     buildpacks = data.get("buildpacks")
     if not isinstance(buildpacks, list) or not buildpacks:
         return {}, ["Missing or empty [[buildpacks]] list"]
 
-    tags_by_repository: dict[str, str] = {}
+    tags_by_repository: dict[str, set[str]] = {}
     errors: list[str] = []
     for index, buildpack in enumerate(buildpacks):
         location = f"[[buildpacks]][{index}]"
@@ -132,13 +137,17 @@ def _validate_buildpacks(data: dict[str, Any]) -> tuple[dict[str, str], list[str
         if not tag:
             errors.append(f"{location} uri missing version tag: {uri}")
             continue
-        tags_by_repository[repository] = tag
+        if tag in MOVING_TAGS:
+            # Renovate pins these tags; a moving tag silently changes the builder.
+            errors.append(f"{location} uri must pin a version, not '{tag}': {uri}")
+            continue
+        tags_by_repository.setdefault(repository, set()).add(tag)
 
     return tags_by_repository, errors
 
 
 def _validate_order(
-    data: dict[str, Any], tags_by_repository: dict[str, str]
+    data: dict[str, Any], tags_by_repository: dict[str, set[str]]
 ) -> list[str]:
     orders = data.get("order")
     if not isinstance(orders, list) or not orders:
@@ -174,16 +183,17 @@ def _validate_order(
                 continue
 
             repository = _normalize_repository(entry_id)
-            pinned_tag = tags_by_repository.get(repository)
-            if pinned_tag is None:
+            pinned_tags = tags_by_repository.get(repository)
+            if pinned_tags is None:
                 errors.append(
                     f"{entry_location} id '{entry_id}' "
                     f"has no matching [[buildpacks]] uri"
                 )
-            elif entry_version and pinned_tag != entry_version:
+            elif entry_version and entry_version not in pinned_tags:
+                available = ", ".join(sorted(pinned_tags))
                 errors.append(
                     f"{entry_location} version '{entry_version}' does not match "
-                    f"[[buildpacks]] uri tag '{pinned_tag}' for '{entry_id}'"
+                    f"[[buildpacks]] uri tag '{available}' for '{entry_id}'"
                 )
     return errors
 
