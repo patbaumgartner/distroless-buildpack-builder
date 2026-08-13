@@ -2,33 +2,44 @@ REGISTRY       ?= ghcr.io/patbaumgartner/distroless-buildpack-builder
 TAG            ?= latest
 PLATFORMS      ?= linux/amd64,linux/arm64
 PACK           ?= pack
+DOCKER         ?= docker
+PYTHON         ?= python3
+
+# Local builds load a single-arch image into the Docker daemon so that
+# `make test` works without registry credentials. Publishing the multi-arch
+# images requires pushing, because buildx cannot --load a multi-platform
+# result: use `make PUSH=1 build-stack`.
+ifeq ($(PUSH),1)
+BUILDX_OUTPUT := --platform $(PLATFORMS) --push
+BUILDX_TARGET := $(PLATFORMS), pushed to $(REGISTRY)
+else
+BUILDX_OUTPUT := --load
+BUILDX_TARGET := local daemon
+endif
 
 .PHONY: all build build-stack build-stack-build build-stack-run build-builder \
-        push-builder test test-integration test-smoke lint clean help
+        push-builder test test-unit test-smoke test-integration \
+        lint lint-dockerfiles lint-shell clean help
 
-all: build-stack build-builder
+all: build
 
 build: build-stack build-builder
 
-# Multi-arch builds require buildx and push directly to the registry.
-# docker buildx with --platform + multiple targets cannot --load locally.
 build-stack: build-stack-build build-stack-run
 
 build-stack-build:
-	docker buildx build \
-	  --platform $(PLATFORMS) \
+	$(DOCKER) buildx build \
+	  $(BUILDX_OUTPUT) \
 	  --tag $(REGISTRY)/build:$(TAG) \
-	  --push \
 	  ./stack/build
-	@echo "✔ Build stack image: $(REGISTRY)/build:$(TAG) [$(PLATFORMS)]"
+	@echo "✔ Build stack image: $(REGISTRY)/build:$(TAG) [$(BUILDX_TARGET)]"
 
 build-stack-run:
-	docker buildx build \
-	  --platform $(PLATFORMS) \
+	$(DOCKER) buildx build \
+	  $(BUILDX_OUTPUT) \
 	  --tag $(REGISTRY)/run:$(TAG) \
-	  --push \
 	  ./stack/run
-	@echo "✔ Run stack image:   $(REGISTRY)/run:$(TAG) [$(PLATFORMS)]"
+	@echo "✔ Run stack image:   $(REGISTRY)/run:$(TAG) [$(BUILDX_TARGET)]"
 
 build-builder:
 	$(PACK) builder create $(REGISTRY):$(TAG) \
@@ -42,7 +53,10 @@ push-builder:
 	  --publish
 	@echo "✔ Builder pushed: $(REGISTRY):$(TAG)"
 
-test: test-smoke test-integration
+test: test-unit test-smoke test-integration
+
+test-unit:
+	$(PYTHON) -m unittest discover --start-directory tests/smoke
 
 test-smoke:
 	bash ./tests/smoke/smoke_test.sh
@@ -50,29 +64,44 @@ test-smoke:
 test-integration:
 	bash ./tests/integration/test_builder.sh
 
-lint:
-	@command -v hadolint >/dev/null 2>&1 && \
-	  hadolint stack/build/Dockerfile stack/run/Dockerfile || \
-	  echo "hadolint not found – skipping Dockerfile lint"
+lint: lint-dockerfiles lint-shell
+
+lint-dockerfiles:
+	@command -v hadolint >/dev/null 2>&1 || { \
+	  echo "hadolint not found – see https://github.com/hadolint/hadolint" >&2; \
+	  exit 1; \
+	}
+	hadolint stack/build/Dockerfile stack/run/Dockerfile
+
+lint-shell:
+	@command -v shellcheck >/dev/null 2>&1 || { \
+	  echo "shellcheck not found – see https://www.shellcheck.net" >&2; \
+	  exit 1; \
+	}
+	shellcheck tests/smoke/smoke_test.sh tests/integration/test_builder.sh
 
 clean:
-	-docker rmi $(REGISTRY)/build:$(TAG)
-	-docker rmi $(REGISTRY)/run:$(TAG)
-	-docker rmi $(REGISTRY):$(TAG)
+	-$(DOCKER) rmi $(REGISTRY)/build:$(TAG)
+	-$(DOCKER) rmi $(REGISTRY)/run:$(TAG)
+	-$(DOCKER) rmi $(REGISTRY):$(TAG)
 	@echo "✔ Cleaned local images"
 
 help:
 	@echo ""
 	@echo "Distroless Buildpack Builder"
 	@echo ""
-	@echo "  make build-stack      Build + push multi-arch stack images (amd64, arm64)"
-	@echo "  make build-builder    Assemble the CNB builder image"
-	@echo "  make push-builder     Push builder to registry via pack"
-	@echo "  make test             Run smoke + integration tests"
-	@echo "  make lint             Lint Dockerfiles with hadolint"
-	@echo "  make clean            Remove local Docker images"
+	@echo "  make build-stack       Build stack images (add PUSH=1 for multi-arch publish)"
+	@echo "  make build-builder     Assemble the CNB builder image"
+	@echo "  make push-builder      Push builder to registry via pack"
+	@echo "  make test              Run unit + smoke + integration tests"
+	@echo "  make test-unit         Validate builder.toml tooling (no Docker needed)"
+	@echo "  make test-smoke        Check stack image contract (needs stack images)"
+	@echo "  make test-integration  Build and probe every sample app"
+	@echo "  make lint              Lint Dockerfiles (hadolint) and shell scripts"
+	@echo "  make clean             Remove local Docker images"
 	@echo ""
 	@echo "  REGISTRY=$(REGISTRY)"
 	@echo "  TAG=$(TAG)"
-	@echo "  PLATFORMS=$(PLATFORMS)"
+	@echo "  PLATFORMS=$(PLATFORMS)   (only used with PUSH=1)"
+	@echo "  PUSH=$(if $(PUSH),$(PUSH),0)"
 	@echo ""
