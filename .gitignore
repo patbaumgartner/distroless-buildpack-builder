@@ -2,6 +2,9 @@
 *.tar
 *.tar.gz
 
+# Maven / OpenRewrite output, at the repository root and in any sample
+target/
+
 # Local pack cache
 .pack/
 
@@ -29,8 +32,6 @@ samples/nodejs/package-lock.json
 samples/go/vendor/
 
 # Java build artifacts
-samples/java/target/
-samples/java-native-image/target/
 samples/java/.mvn/wrapper/maven-wrapper.jar
 samples/java-native-image/.mvn/wrapper/maven-wrapper.jar
 
@@ -38,7 +39,9 @@ samples/java-native-image/.mvn/wrapper/maven-wrapper.jar
 /tmp/
 
 # Python cache
-samples/python/__pycache__/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
 
 # Ruby bundle cache
 samples/ruby/.bundle/
