@@ -81,7 +81,7 @@ jobs:
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Set up pack CLI
-        uses: buildpacks/github-actions/setup-pack@96703334b4d689ea01dce353220c651e294e3261 # v6.0.1
+        uses: buildpacks/github-actions/setup-pack@36416a96be10a6cc7170e7c9c63656d4092f78b2 # v6.1.0
 
       - name: Set up Java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
