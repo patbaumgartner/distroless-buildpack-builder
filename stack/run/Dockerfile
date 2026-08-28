@@ -59,7 +59,7 @@ RUN if getent passwd ubuntu >/dev/null 2>&1; then userdel --remove ubuntu; fi \
 
 
 # Stage 3: Final distroless runtime – inject user, libs, and certs into the minimal base
-FROM gcr.io/distroless/cc:nonroot@sha256:a77defd6fedbb3392b175ba8ea3d1c22be963c1597c248c3ba987ddd80bfb512
+FROM gcr.io/distroless/cc:nonroot@sha256:c31ff9abcb1910f3ab25c7957bdaf0bfe12a01eb546e8df2282f1c8f682b606c
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
