@@ -4,7 +4,7 @@
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
-FROM ubuntu:22.04@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17df77c7dbc AS icu-compat
+FROM ubuntu:22.04@sha256:829f6df217bcbae2b371026e81711d1a787c61b2967ad09d015063663ebafbf7 AS icu-compat
 ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
 # hadolint ignore=DL3008
 RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
@@ -15,7 +15,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
     && cp -a "/usr/lib/${ARCH}-linux-gnu"/libicu*.so.70* /staging/
 
 # Stage 2: Main build image
-FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+FROM ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
 
 ARG CNB_USER_ID=1000
 ARG CNB_GROUP_ID=1000
