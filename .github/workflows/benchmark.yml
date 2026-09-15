@@ -95,15 +95,32 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           for i in $(seq 1 "${ITERATIONS}"); do
-            START=$(date +%s%N)
-            pack build "${IMAGE}" \
-              --path "./samples/${SAMPLE}" \
-              --builder "${BUILDER}" \
-              --trust-builder \
-              --pull-policy if-not-present \
-              --clear-cache 2>&1 | tail -20
-            END=$(date +%s%N)
-            ELAPSED=$(( (END - START) / 1000000000 ))
+            ELAPSED=""
+            # Time each attempt separately: a retried build re-downloads
+            # everything, so only the successful attempt is a valid sample.
+            for attempt in 1 2 3; do
+              START=$(date +%s%N)
+              if pack build "${IMAGE}" \
+                --path "./samples/${SAMPLE}" \
+                --builder "${BUILDER}" \
+                --trust-builder \
+                --pull-policy if-not-present \
+                --clear-cache 2>&1 | tail -20; then
+                END=$(date +%s%N)
+                ELAPSED=$(( (END - START) / 1000000000 ))
+                break
+              fi
+              echo "::warning::pack build for ${SAMPLE} failed (attempt ${attempt}/3)"
+              if [[ "${attempt}" -lt 3 ]]; then
+                sleep $((attempt * 15))
+              fi
+            done
+
+            if [[ -z "${ELAPSED}" ]]; then
+              echo "pack build failed for ${SAMPLE} after 3 attempts" >&2
+              exit 1
+            fi
+
             TOTAL=$((TOTAL + ELAPSED))
             echo "| ${i} | ${ELAPSED} |" >> "$GITHUB_STEP_SUMMARY"
             echo "Iteration ${i}: ${ELAPSED}s"

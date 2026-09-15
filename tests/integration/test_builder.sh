@@ -22,6 +22,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
+# shellcheck source=tests/lib/retry.sh
+source "${REPO_ROOT}/tests/lib/retry.sh"
+
 BUILDER="${BUILDER:-ghcr.io/patbaumgartner/distroless-buildpack-builder:latest}"
 REGISTRY_PREFIX="${REGISTRY_PREFIX:-distroless-test}"
 CONTAINER_NAME_PREFIX="distroless-test-"
@@ -93,6 +96,20 @@ check_health_endpoint() {
   fi
 }
 
+# Wrapped in a function so retry() can re-run it; the log is truncated per
+# attempt so only the last attempt is reported on failure.
+pack_build_sample() {
+  local image="$1"
+  local src_dir="$2"
+  local log_file="$3"
+
+  pack build "${image}" \
+    --path "${src_dir}" \
+    --builder "${BUILDER}" \
+    --pull-policy if-not-present \
+    --trust-builder >"${log_file}" 2>&1
+}
+
 test_sample() {
   local lang="$1"
   local src_dir="${REPO_ROOT}/samples/${lang}"
@@ -105,11 +122,7 @@ test_sample() {
   info "  → Building image with pack..."
   local build_log
   build_log=$(mktemp)
-  if ! pack build "${image}" \
-        --path "${src_dir}" \
-        --builder "${BUILDER}" \
-        --pull-policy if-not-present \
-        --trust-builder >"${build_log}" 2>&1; then
+  if ! retry pack_build_sample "${image}" "${src_dir}" "${build_log}"; then
     fail "${lang}: pack build failed"
     cat "${build_log}"
     rm -f "${build_log}"
