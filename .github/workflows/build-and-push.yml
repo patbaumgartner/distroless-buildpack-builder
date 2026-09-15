@@ -193,18 +193,21 @@ jobs:
 
       - name: Build stack images locally (single-arch)
         run: |
-          docker build -t "${{ env.IMAGE_BASE }}/build:latest" ./stack/build
-          docker build -t "${{ env.IMAGE_BASE }}/run:latest" ./stack/run
+          set -euo pipefail
+          bash tests/lib/retry.sh docker build -t "${{ env.IMAGE_BASE }}/build:latest" ./stack/build
+          bash tests/lib/retry.sh docker build -t "${{ env.IMAGE_BASE }}/run:latest" ./stack/run
 
       - name: Create local builder
         run: |
-          pack builder create validate-builder:ci \
+          set -euo pipefail
+          bash tests/lib/retry.sh pack builder create validate-builder:ci \
             --config builder.toml \
             --pull-policy if-not-present
 
       - name: Build Java sample with local builder
         run: |
-          pack build validate-app:ci \
+          set -euo pipefail
+          bash tests/lib/retry.sh pack build validate-app:ci \
             --path ./samples/java \
             --builder validate-builder:ci \
             --trust-builder \
@@ -266,7 +269,8 @@ jobs:
 
       - name: Create and publish builder to GHCR
         run: |
-          pack builder create "${{ env.IMAGE_BASE }}:${{ steps.tag.outputs.tag }}" \
+          set -euo pipefail
+          bash tests/lib/retry.sh pack builder create "${{ env.IMAGE_BASE }}:${{ steps.tag.outputs.tag }}" \
             --config ./builder.toml \
             --publish
 

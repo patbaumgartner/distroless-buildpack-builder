@@ -72,6 +72,20 @@ jobs:
           java-version: "25"
           cache: maven
 
+      # Pull every toolchain image up front with retries so the checks below
+      # never fail on a transient registry reset or timeout.
+      - name: Pull toolchain images
+        run: |
+          set -euo pipefail
+          for image in \
+            node:22 \
+            ruby:3.4 \
+            php:8.3-cli \
+            composer:2 \
+            mcr.microsoft.com/dotnet/sdk:9.0; do
+            bash tests/lib/retry.sh docker pull "${image}"
+          done
+
       - name: Node.js syntax check
         run: |
           set -euo pipefail

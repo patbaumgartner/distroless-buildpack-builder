@@ -122,7 +122,8 @@ jobs:
       # pulling from GHCR (which has no image yet on PR branches).
       - name: Create builder locally
         run: |
-          pack builder create "${{ env.BUILDER_LOCAL_TAG }}" \
+          set -euo pipefail
+          bash tests/lib/retry.sh pack builder create "${{ env.BUILDER_LOCAL_TAG }}" \
             --config builder.toml \
             --pull-policy if-not-present
 
@@ -146,7 +147,8 @@ jobs:
       - name: Build Spring Boot sample via mvn spring-boot:build-image
         working-directory: ./samples/java
         run: |
-          mvn spring-boot:build-image \
+          set -euo pipefail
+          bash ../../tests/lib/retry.sh mvn spring-boot:build-image \
             --no-transfer-progress \
             -Dspring-boot.build-image.imageName=distroless-test/java-mvn:ci \
             -Dspring-boot.build-image.pullPolicy=IF_NOT_PRESENT
