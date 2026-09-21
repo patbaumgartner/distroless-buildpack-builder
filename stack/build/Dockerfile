@@ -4,7 +4,7 @@
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
-FROM ubuntu:22.04@sha256:829f6df217bcbae2b371026e81711d1a787c61b2967ad09d015063663ebafbf7 AS icu-compat
+FROM ubuntu:22.04@sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02 AS icu-compat
 ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
 # hadolint ignore=DL3008
 RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
