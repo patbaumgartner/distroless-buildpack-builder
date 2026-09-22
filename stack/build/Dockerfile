@@ -15,7 +15,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update \
     && cp -a "/usr/lib/${ARCH}-linux-gnu"/libicu*.so.70* /staging/
 
 # Stage 2: Main build image
-FROM ubuntu:24.04@sha256:b35f8c42edf2f1c13abcb5434d8c2034a3f174a517cf0ca71ff3a1acb8a23640
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 
 ARG CNB_USER_ID=1000
 ARG CNB_GROUP_ID=1000
