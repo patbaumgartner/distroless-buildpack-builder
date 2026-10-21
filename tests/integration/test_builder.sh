@@ -152,6 +152,10 @@ test_sample() {
   fi
 
   cleanup_container "${container}"
+
+  # Remove the sample image to keep disk usage flat across all samples;
+  # otherwise accumulated layers exhaust the runner disk quota.
+  docker rmi -f "${image}" >/dev/null 2>&1 || true
 }
 
 # ---------------------------------------------------------------------------
