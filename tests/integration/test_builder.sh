@@ -153,9 +153,12 @@ test_sample() {
 
   cleanup_container "${container}"
 
-  # Remove the sample image to keep disk usage flat across all samples;
-  # otherwise accumulated layers exhaust the runner disk quota.
+  # Remove the sample image and dangling lifecycle cache layers to keep disk
+  # usage flat across all samples; otherwise accumulated layers exhaust the
+  # runner disk quota (builder/stack images are tagged and survive the prune).
   docker rmi -f "${image}" >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+  rm -rf /tmp/imgutil.local.image.* 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
