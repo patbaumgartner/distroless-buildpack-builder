@@ -77,6 +77,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Free disk space before image builds: preinstalled SDKs (Android, GHC,
+      # .NET) plus stale Docker data exceed the runner quota once the stack
+      # images, builder, and all sample images accumulate.
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghc /usr/local/share/boost || true
+          sudo apt-get clean || true
+          docker system prune -af --volumes || true
+          df -h /
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
