@@ -17,6 +17,10 @@ updates:
     github-actions:
       patterns:
       - '*'
+    multi-step-actions:
+      patterns:
+      - buildpacks/github-actions/*
+      - github/codeql-action/*
 - package-ecosystem: docker
   directory: /stack/build
   schedule:
@@ -207,8 +211,3 @@ updates:
     php-dependencies:
       patterns:
       - '*'
-groups:
-  multi-step-actions:
-    patterns:
-    - buildpacks/github-actions/*
-    - github/codeql-action/*
