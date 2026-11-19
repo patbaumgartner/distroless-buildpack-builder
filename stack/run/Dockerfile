@@ -6,7 +6,7 @@
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
-FROM ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11 AS icu-compat
+FROM ubuntu:22.04@sha256:9abcaffc92a5279fff3a6a41635c0800ea33e528425fb389658806476e7defde AS icu-compat
 # hadolint ignore=DL3008
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
@@ -16,7 +16,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && cp -a "/usr/lib/${ARCH}-linux-gnu"/libicu*.so.70* /staging/
 
 # Stage 2: Ubuntu setup (user/group + runtime libraries)
-FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS ubuntu-setup
+FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS ubuntu-setup
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
