@@ -5,6 +5,13 @@ schema-version = "0.2"
   name  = "BP_JVM_VERSION"
   value = "25"
 
+# Spring Cloud Bindings is unsupported by Spring Boot 4.2+ and makes the
+# application crash at startup. The Paketo Java buildpack in this builder
+# predates the automatic opt-out, so disable it explicitly.
+[[ io.buildpacks.build.env ]]
+  name  = "BP_SPRING_CLOUD_BINDINGS_DISABLED"
+  value = "true"
+
 [[ io.buildpacks.build.env ]]
   name  = "BP_DIRECT_PROCESS"
   value = "true"
