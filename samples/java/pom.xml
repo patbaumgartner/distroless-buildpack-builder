@@ -68,6 +68,10 @@
             -->
             <builder>ghcr.io/patbaumgartner/distroless-buildpack-builder:latest</builder>
             <pullPolicy>IF_NOT_PRESENT</pullPolicy>
+            <env>
+              <!-- Spring Cloud Bindings is unsupported by Spring Boot 4.2+. -->
+              <BP_SPRING_CLOUD_BINDINGS_DISABLED>true</BP_SPRING_CLOUD_BINDINGS_DISABLED>
+            </env>
           </image>
         </configuration>
       </plugin>
