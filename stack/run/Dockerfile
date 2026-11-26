@@ -6,14 +6,19 @@
 
 # Stage 1: ICU 70 compatibility libraries from Ubuntu 22.04
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
+# Extract the .deb directly: apt-get install runs the libc-bin/ldconfig trigger,
+# which segfaults under QEMU when this stage is built for linux/arm64.
 FROM ubuntu:22.04@sha256:9abcaffc92a5279fff3a6a41635c0800ea33e528425fb389658806476e7defde AS icu-compat
-# hadolint ignore=DL3008
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libicu70 \
-    && rm -rf /var/lib/apt/lists/* \
-    && ARCH="$(uname -m)" \
-    && mkdir -p /staging \
-    && cp -a "/usr/lib/${ARCH}-linux-gnu"/libicu*.so.70* /staging/
+ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+WORKDIR /tmp/icu-deb
+RUN set -eu; \
+    DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} update; \
+    mkdir -p /tmp/icu-root /staging; \
+    DEBIAN_FRONTEND=noninteractive apt-get ${APT_OPTIONS} download libicu70; \
+    dpkg-deb -x ./libicu70_*.deb /tmp/icu-root; \
+    ARCH="$(uname -m)"; \
+    cp -a "/tmp/icu-root/usr/lib/${ARCH}-linux-gnu"/libicu*.so.70* /staging/; \
+    rm -rf /tmp/icu-root /var/lib/apt/lists/*
 
 # Stage 2: Ubuntu setup (user/group + runtime libraries)
 FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS ubuntu-setup
