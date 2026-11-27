@@ -8,7 +8,7 @@
 # Dependabot: do NOT bump this past 22.04 — libicu70 is only available in Jammy.
 # Extract the .deb directly: apt-get install runs the libc-bin/ldconfig trigger,
 # which segfaults under QEMU when this stage is built for linux/arm64.
-FROM ubuntu:22.04@sha256:9abcaffc92a5279fff3a6a41635c0800ea33e528425fb389658806476e7defde AS icu-compat
+FROM ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb8469b509e2334fa4d018ac30f3e18cdb AS icu-compat
 ARG APT_OPTIONS="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
 WORKDIR /tmp/icu-deb
 RUN set -eu; \
@@ -21,7 +21,7 @@ RUN set -eu; \
     rm -rf /tmp/icu-root /var/lib/apt/lists/*
 
 # Stage 2: Ubuntu setup (user/group + runtime libraries)
-FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS ubuntu-setup
+FROM ubuntu:24.04@sha256:562111b88caa79c71391c0c4d3c2114a7d5c35915c20561fd893cb1e07929e6b AS ubuntu-setup
 
 ARG CNB_USER_ID=1002
 ARG CNB_GROUP_ID=1000
